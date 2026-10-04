@@ -81,16 +81,58 @@ class BebeRequestHandler(http.server.SimpleHTTPRequestHandler):
             db = load_db()
             favs = sum(1 for x in db if x.get('status') == 'favorites')
             poss = sum(1 for x in db if x.get('status') == 'possible')
+            sims = sum(1 for x in db if x.get('status') == 'similar_excluded')
             excl = sum(1 for x in db if x.get('status') == 'excluded')
+            
+            # Rob stats
+            rob_favs = sum(1 for x in db if x.get('rob_status') == 'favorites')
+            rob_poss = sum(1 for x in db if x.get('rob_status') == 'possible')
+            rob_sims = sum(1 for x in db if x.get('rob_status') == 'similar_excluded')
+            rob_excl = sum(1 for x in db if x.get('rob_status') == 'excluded')
+            rob_unrated = sum(1 for x in db if x.get('rob_status') in ['unrated', None])
+
+            # Ana stats
+            ana_favs = sum(1 for x in db if x.get('ana_status') == 'favorites')
+            ana_poss = sum(1 for x in db if x.get('ana_status') == 'possible')
+            ana_sims = sum(1 for x in db if x.get('ana_status') == 'similar_excluded')
+            ana_excl = sum(1 for x in db if x.get('ana_status') == 'excluded')
+            ana_unrated = sum(1 for x in db if x.get('ana_status') in ['unrated', None])
+
+            # Matches
+            super_matches = sum(1 for x in db if x.get('rob_status') == 'favorites' and x.get('ana_status') == 'favorites')
+            matches = sum(1 for x in db if x.get('rob_status') in ['favorites', 'possible'] and x.get('ana_status') in ['favorites', 'possible'])
+            conflicts = sum(1 for x in db if (x.get('rob_status') in ['favorites', 'possible'] and x.get('ana_status') in ['excluded', 'similar_excluded']) or (x.get('ana_status') in ['favorites', 'possible'] and x.get('rob_status') in ['excluded', 'similar_excluded']))
+
             pdf_count = sum(1 for x in db if 'PDF' in x.get('source', ''))
-            new_count = sum(1 for x in db if '500' in x.get('source', '') or x.get('is_new'))
+            new_count = sum(1 for x in db if 'PDF' not in x.get('source', ''))
             user_count = sum(1 for x in db if x.get('source') == 'User Added')
+
             self.send_json(200, {
                 'success': True,
                 'total': len(db),
                 'favorites': favs,
                 'possible': poss,
+                'similar_excluded': sims,
                 'excluded': excl,
+                'rob': {
+                    'favorites': rob_favs,
+                    'possible': rob_poss,
+                    'similar_excluded': rob_sims,
+                    'excluded': rob_excl,
+                    'unrated': rob_unrated
+                },
+                'ana': {
+                    'favorites': ana_favs,
+                    'possible': ana_poss,
+                    'similar_excluded': ana_sims,
+                    'excluded': ana_excl,
+                    'unrated': ana_unrated
+                },
+                'matches': {
+                    'super_matches': super_matches,
+                    'matches': matches,
+                    'conflicts': conflicts
+                },
                 'pdf_count': pdf_count,
                 'new_count': new_count,
                 'user_count': user_count
@@ -122,13 +164,19 @@ class BebeRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             db = load_db()
             new_id = f"custom-{int(datetime.now().timestamp() * 1000)}"
+            initial_status = data.get('status', 'possible')
             new_item = {
                 'id': new_id,
                 'name': name_val,
-                'origin': data.get('origin', 'Spanish/Latin').strip(),
+                'origin': data.get('origin', 'Latino / Español').strip(),
                 'meaning': data.get('meaning', '').strip(),
                 'letter': name_val[0].upper() if name_val else 'A',
-                'status': data.get('status', 'possible'),
+                'status': initial_status,
+                'rob_status': data.get('rob_status', initial_status),
+                'ana_status': data.get('ana_status', 'unrated'),
+                'saint_day': data.get('saint_day', '').strip(),
+                'similar_to': data.get('similar_to', '').strip(),
+                'is_compound': ' ' in name_val.strip(),
                 'notes': data.get('notes', '').strip(),
                 'source': 'User Added',
                 'gender': data.get('gender', 'Female'),
@@ -140,7 +188,7 @@ class BebeRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if path == '/api/batch':
-            # Batch update e.g. [{"id": "...", "status": "favorites"}, ...]
+            # Batch update e.g. [{"id": "...", "status": "favorites", "rob_status": "favorites"}, ...]
             updates = data.get('updates', [])
             if not isinstance(updates, list):
                 self.send_json(400, {'success': False, 'error': 'Expected "updates" array'})
@@ -149,10 +197,11 @@ class BebeRequestHandler(http.server.SimpleHTTPRequestHandler):
             db = load_db()
             update_map = {item['id']: item for item in updates if 'id' in item}
             modified = 0
+            allowed_keys = ['status', 'rob_status', 'ana_status', 'notes', 'origin', 'meaning', 'saint_day', 'similar_to']
             for item in db:
                 if item['id'] in update_map:
                     u = update_map[item['id']]
-                    for key in ['status', 'notes', 'origin', 'meaning']:
+                    for key in allowed_keys:
                         if key in u:
                             item[key] = u[key]
                     modified += 1
@@ -189,9 +238,10 @@ class BebeRequestHandler(http.server.SimpleHTTPRequestHandler):
             db = load_db()
             found = False
             updated_item = None
+            allowed_keys = ['status', 'rob_status', 'ana_status', 'notes', 'origin', 'meaning', 'name', 'saint_day', 'similar_to']
             for item in db:
                 if item['id'] == item_id:
-                    for key in ['status', 'notes', 'origin', 'meaning', 'name']:
+                    for key in allowed_keys:
                         if key in patch:
                             item[key] = patch[key]
                     found = True
