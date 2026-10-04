@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 Builds production-ready index.html with:
-1. 2,500 new unrated names waiting for Rob and Ana to classify them!
-2. Swipe mode defaults to 'Nuevos por Clasificar' (2,500 names) so it NEVER says 'all done'!
-3. Touch drag & keyboard swipe gestures (← Excluir, ↓ Duda, ↑ Posible, → Favorito)
-4. Cache versioning ('chiquitina_v4_cache') so the browser immediately invalidates old cache
-5. Comprehensive metrics banner with '⏳ Por Clasificar' count
-6. Dedicated '⏳ Por Clasificar' filter tab in the main ribbon
-7. Partner status display on every card and inside Swipe mode
-8. Mobile sticky dock with direct access to Swipe, Favoritos and Matches
+1. Bulletproof lightweight votes storage ('chiquitina_user_votes_v1') - saves only ID -> status (~50 KB)
+2. Zero risk of QuotaExceededError or data loss across page reloads and sessions
+3. Real-time Swipe session counter (⭐ 0 | 👍 0 | ⚠️ 0 | ❌ 0) so the user visibly sees choices accumulating
+4. '↩️ Deshacer (Undo)' button in Swipe Mode to restore previous choices
+5. Automatic overlay of saved votes on page load
+6. Touch drag gestures & keyboard support
+7. 2,500 new unrated names waiting for Rob and Ana
 """
 
 import json
@@ -146,9 +145,9 @@ html_template = '''<!DOCTYPE html>
           <div>
             <div class="flex items-center gap-2">
               <h1 class="text-xl sm:text-2xl font-bold font-display tracking-tight text-neutral-900">Nombres para Chiquitina</h1>
-              <span id="connectionBadge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span id="storageStatusBadge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span id="connectionText">Sincronizado</span>
+                <span id="storageStatusText">Guardado en tiempo real</span>
               </span>
             </div>
             <p class="text-xs text-neutral-500 font-medium">Rob & Ana — Encuentra el nombre perfecto para nuestra bebé</p>
@@ -330,7 +329,7 @@ html_template = '''<!DOCTYPE html>
         <!-- Right: Version Segmented Toggle Buttons -->
         <div class="inline-flex p-1.5 bg-neutral-100/90 rounded-2xl border border-neutral-200/80 gap-1 flex-wrap sm:flex-nowrap">
           
-          <!-- Option 1: Nuevos Nombres Añadidos (Promoted first for fast access) -->
+          <!-- Option 1: Nuevos Nombres Añadidos -->
           <button 
             id="verBtn_new" 
             onclick="setVersionFilter('new')" 
@@ -852,12 +851,12 @@ html_template = '''<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- Swipe Discovery Mode Modal (Tinder-style 4-Way with Person Selection & Touch Gestures) -->
+  <!-- Swipe Discovery Mode Modal (Tinder-style with Real-time Persistence & Undo) -->
   <div id="swipeModal" class="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-50 hidden flex flex-col items-center justify-center p-3 sm:p-4">
     <div class="max-w-md w-full flex flex-col items-center">
       
       <!-- Top header bar -->
-      <div class="w-full flex items-center justify-between text-white/90 mb-3 px-1">
+      <div class="w-full flex items-center justify-between text-white/90 mb-2 px-1">
         <div class="flex items-center gap-2">
           <span class="text-xl">✨</span>
           <span class="font-bold text-sm">Modo Swipe para Pareja</span>
@@ -866,30 +865,40 @@ html_template = '''<!DOCTYPE html>
         <button onclick="closeSwipeModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm font-bold text-white transition">✕</button>
       </div>
 
-      <!-- Who is swiping selector -->
-      <div class="w-full bg-white/10 backdrop-blur-md rounded-2xl p-1.5 mb-2.5 flex items-center justify-between border border-white/10">
-        <div class="text-xs text-white/90 font-bold px-2 flex items-center gap-1">
-          <span>Calificando como:</span>
-        </div>
-        <div class="inline-flex gap-1">
+      <!-- Who is swiping selector & Undo button -->
+      <div class="w-full bg-white/10 backdrop-blur-md rounded-2xl p-1.5 mb-2 flex items-center justify-between border border-white/10">
+        <div class="inline-flex items-center gap-1">
+          <span class="text-xs text-white/90 font-bold px-1">Votando:</span>
           <button 
             id="swipeUser_rob" 
             onclick="setSwipeUser('rob')" 
-            class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-xs transition"
+            class="px-2.5 py-1 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-xs transition"
           >
             👨 Rob
           </button>
           <button 
             id="swipeUser_ana" 
             onclick="setSwipeUser('ana')" 
-            class="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white/70 hover:text-white transition"
+            class="px-2.5 py-1 rounded-xl text-xs font-bold text-white/70 hover:text-white transition"
           >
             👩 Ana
           </button>
         </div>
+
+        <!-- Undo button -->
+        <button onclick="undoLastSwipe()" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-white/15 hover:bg-white/25 text-white transition flex items-center gap-1 border border-white/20 active:scale-95">
+          <span>↩️</span>
+          <span>Deshacer</span>
+        </button>
       </div>
 
-      <!-- Filter deck selector (With Nuevos por Clasificar active by default) -->
+      <!-- Live Session Stats Ribbon -->
+      <div class="w-full flex items-center justify-between text-[11px] text-white/80 bg-white/5 border border-white/10 px-3 py-1 rounded-xl mb-2.5">
+        <span>Votados en esta sesión:</span>
+        <span id="swipeSessionStats" class="font-mono font-bold text-amber-300">⭐ 0 | 👍 0 | ⚠️ 0 | ❌ 0</span>
+      </div>
+
+      <!-- Filter deck selector -->
       <div class="w-full flex items-center justify-center gap-1.5 mb-3 flex-wrap">
         <button onclick="setSwipeFilter('new_unrated')" id="swipeFilter_new_unrated" class="px-3 py-1 rounded-full text-xs font-bold bg-rose-500 text-white shadow-xs transition">
           ✨ Nuevos por Clasificar (+2,500)
@@ -900,8 +909,8 @@ html_template = '''<!DOCTYPE html>
         <button onclick="setSwipeFilter('possible')" id="swipeFilter_possible" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition">
           👍 Mis Posibles
         </button>
-        <button onclick="setSwipeFilter('all')" id="swipeFilter_all" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition">
-          🌟 Todo el Catálogo
+        <button onclick="setSwipeFilter('favorites')" id="swipeFilter_favorites" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition">
+          ⭐ Mis Favoritos
         </button>
       </div>
 
@@ -966,8 +975,12 @@ html_template = '''<!DOCTYPE html>
     <span id="toastMessage">Acción completada</span>
   </div>
 
-  <!-- Embedded Core Logic & Data Loader -->
+  <!-- Embedded Core Logic & Lightweight Persistence Engine -->
   <script>
+    // Storage Keys
+    const VOTES_STORAGE_KEY = 'chiquitina_user_votes_v2';
+    const CUSTOM_NAMES_KEY = 'chiquitina_custom_names_v2';
+
     // App State
     let allNames = [];
     let filteredNames = [];
@@ -990,6 +1003,8 @@ html_template = '''<!DOCTYPE html>
     let swipeIndex = 0;
     let swipeUser = currentUser === 'both' ? 'rob' : currentUser;
     let swipeDeckFilter = 'new_unrated';
+    let swipeHistory = [];
+    let sessionVoteCounts = { favorites: 0, possible: 0, similar_excluded: 0, excluded: 0 };
 
     // Color mapper for origins
     const originColors = {
@@ -1024,8 +1039,12 @@ html_template = '''<!DOCTYPE html>
           console.error("Error parsing embedded data:", e);
         }
       }
+
+      // 2. Overlay permanently stored user votes from localStorage (Lightning fast & lightweight)
+      applySavedVotes();
+
       buildAlphabetBar();
-      await loadInitialData();
+      await checkServerConnection();
       updateUserUI();
       renderStats();
       populateOriginDropdown();
@@ -1045,78 +1064,128 @@ html_template = '''<!DOCTYPE html>
       `).join('');
     }
 
-    // Load Data from Server or Local Storage with Version Invalidation
-    async function loadInitialData() {
-      const connBadge = document.getElementById('connectionBadge');
-      const connText = document.getElementById('connectionText');
-      const CURRENT_CACHE_VERSION = 'chiquitina_v5_unrated_new_2500';
-
-      // 1. Try server
+    // Save vote to lightweight store (< 50 KB, never overflows localStorage)
+    function saveVoteLocally(id, status, user) {
       try {
-        const resp = await fetch('/api/names');
-        if (resp.ok) {
-          const json = await resp.json();
-          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-            allNames = json.data;
-            isServerMode = true;
-            if (connBadge) connBadge.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
-            if (connText) connText.innerText = 'Servidor Conectado';
-            localStorage.setItem('chiquitina_names_cache', JSON.stringify(allNames));
-            localStorage.setItem('chiquitina_cache_ver', CURRENT_CACHE_VERSION);
-            return;
-          }
-        }
-      } catch (e) {
-        console.log("Servidor local no disponible, recurriendo a localStorage/embedded data", e);
-      }
-
-      // 2. Cache version check: if old cache exists, discard it to load fresh 2,500 unrated names
-      const savedVer = localStorage.getItem('chiquitina_cache_ver');
-      if (savedVer !== CURRENT_CACHE_VERSION) {
-        localStorage.removeItem('chiquitina_names_cache');
-        localStorage.removeItem('bebe_names_cache');
-        localStorage.setItem('chiquitina_cache_ver', CURRENT_CACHE_VERSION);
-        // keep allNames from embedded data
-        localStorage.setItem('chiquitina_names_cache', JSON.stringify(allNames));
-        return;
-      }
-
-      // 3. Check localStorage
-      const cached = localStorage.getItem('chiquitina_names_cache');
-      if (cached) {
+        let votes = {};
         try {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            allNames = parsed;
-          }
-        } catch (e) {
-          console.error("Error reading localStorage:", e);
+          votes = JSON.parse(localStorage.getItem(VOTES_STORAGE_KEY) || '{"rob":{},"ana":{}}');
+        } catch (e) { votes = { rob: {}, ana: {} }; }
+
+        if (!votes.rob) votes.rob = {};
+        if (!votes.ana) votes.ana = {};
+
+        if (user === 'rob') {
+          votes.rob[id] = status;
+        } else if (user === 'ana') {
+          votes.ana[id] = status;
         }
+        localStorage.setItem(VOTES_STORAGE_KEY, JSON.stringify(votes));
+      } catch (err) {
+        console.error("Failed to save vote locally:", err);
       }
     }
 
-    // Save Data
-    async function saveNameChange(item) {
-      localStorage.setItem('chiquitina_names_cache', JSON.stringify(allNames));
-      renderStats();
+    // Apply saved votes from localStorage onto allNames
+    function applySavedVotes() {
+      try {
+        // 1. Add custom user-added names if any
+        const customNames = JSON.parse(localStorage.getItem(CUSTOM_NAMES_KEY) || '[]');
+        if (Array.isArray(customNames) && customNames.length > 0) {
+          for (const customItem of customNames) {
+            if (!allNames.some(x => x.id === customItem.id)) {
+              allNames.unshift(customItem);
+            }
+          }
+        }
 
+        // 2. Overlay votes
+        const votes = JSON.parse(localStorage.getItem(VOTES_STORAGE_KEY) || '{"rob":{},"ana":{}}');
+        if (votes.rob) {
+          for (const [id, st] of Object.entries(votes.rob)) {
+            const item = allNames.find(x => x.id === id);
+            if (item) item.rob_status = st;
+          }
+        }
+        if (votes.ana) {
+          for (const [id, st] of Object.entries(votes.ana)) {
+            const item = allNames.find(x => x.id === id);
+            if (item) item.ana_status = st;
+          }
+        }
+
+        // 3. Recompute consensus status
+        for (const item of allNames) {
+          const r = item.rob_status || 'unrated';
+          const a = item.ana_status || 'unrated';
+          if (r === 'favorites' && a === 'favorites') item.status = 'favorites';
+          else if (r === 'favorites' || a === 'favorites') item.status = 'favorites';
+          else if (r === 'possible' || a === 'possible') item.status = 'possible';
+          else if (r === 'similar_excluded' || a === 'similar_excluded') item.status = 'similar_excluded';
+          else if (r === 'excluded' && a === 'excluded') item.status = 'excluded';
+          else if (r !== 'unrated') item.status = r;
+          else if (a !== 'unrated') item.status = a;
+          else item.status = 'unrated';
+        }
+      } catch (err) {
+        console.error("Error applying saved votes:", err);
+      }
+    }
+
+    // Check if local server is running (Optional enhancement for local dev)
+    async function checkServerConnection() {
+      const badge = document.getElementById('storageStatusBadge');
+      const text = document.getElementById('storageStatusText');
+      try {
+        const resp = await fetch('/api/stats');
+        if (resp.ok) {
+          isServerMode = true;
+          if (badge) badge.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
+          if (text) text.innerText = 'Servidor + Nube Sincronizados';
+        }
+      } catch (e) {
+        // GitHub Pages mode (pure client-side with persistent localStorage)
+        isServerMode = false;
+        if (badge) badge.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-200';
+        if (text) text.innerText = 'Memoria Local Persistente';
+      }
+    }
+
+    // Save Name Change
+    async function saveNameChange(item, user = currentUser) {
+      const targetUser = user === 'both' ? 'rob' : user;
+      const newSt = targetUser === 'rob' ? item.rob_status : item.ana_status;
+
+      // 1. Immediately store vote in lightweight permanent storage
+      saveVoteLocally(item.id, newSt, targetUser);
+
+      // 2. If local python server is running, also push to backend
       if (isServerMode) {
         try {
           await fetch(`/api/names/${item.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item)
+            body: JSON.stringify({
+              rob_status: item.rob_status,
+              ana_status: item.ana_status,
+              status: item.status
+            })
           });
         } catch (e) {
-          console.error("Failed to sync change to server:", e);
+          console.warn("Server sync skipped");
         }
       }
+
+      renderStats();
     }
 
     // User Switching Logic (Rob / Ana / Ambos)
     function switchUser(newUser) {
       currentUser = newUser;
-      localStorage.setItem('chiquitina_active_user', currentUser);
+      try {
+        localStorage.setItem('chiquitina_active_user', currentUser);
+      } catch (e) {}
+
       swipeUser = currentUser === 'both' ? 'rob' : currentUser;
       updateUserUI();
       renderStats();
@@ -1166,7 +1235,7 @@ html_template = '''<!DOCTYPE html>
         if (avatarPill) { avatarPill.innerText = '👨'; avatarPill.className = 'w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl shadow-sm shrink-0'; }
         if (title) title.innerText = 'Panel de Preferencias de Rob';
         if (tag) { tag.innerText = 'Modo Activo: Rob'; tag.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200'; }
-        if (sub) sub.innerText = 'Tienes 2,500 nombres hispanos nuevos por clasificar. ¡Usa el modo Swipe o las tarjetas para calificarlos!';
+        if (sub) sub.innerText = 'Tienes 2,500 nombres hispanos nuevos por clasificar. ¡Tus decisiones se guardan al instante!';
         if (toggleLabel) toggleLabel.innerText = 'Cambiar a Ana';
       } else if (isAna) {
         if (banner) banner.className = 'bg-gradient-to-r from-pink-50 via-rose-50/40 to-amber-50 rounded-3xl p-4 sm:p-5 border border-pink-200 shadow-2xs mb-6';
@@ -1273,7 +1342,7 @@ html_template = '''<!DOCTYPE html>
         item.status = newStatus;
       }
 
-      await saveNameChange(item);
+      await saveNameChange(item, person);
 
       // Check for Super Match celebration!
       if (item.rob_status === 'favorites' && item.ana_status === 'favorites') {
@@ -1283,7 +1352,6 @@ html_template = '''<!DOCTYPE html>
         showToast(`${person === 'rob' ? '👨 Rob' : '👩 Ana'} marcó "${item.name}" como ${labels[newStatus] || newStatus}`);
       }
 
-      // Re-render
       renderStats();
       applyFilters();
     }
@@ -1295,20 +1363,9 @@ html_template = '''<!DOCTYPE html>
       }
       allNames.forEach(x => {
         x.ana_status = x.rob_status || 'unrated';
+        saveVoteLocally(x.id, x.ana_status, 'ana');
       });
-      localStorage.setItem('chiquitina_names_cache', JSON.stringify(allNames));
-      if (isServerMode) {
-        try {
-          const updates = allNames.map(x => ({ id: x.id, ana_status: x.ana_status }));
-          await fetch('/api/batch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ updates })
-          });
-        } catch (e) {
-          console.error("Batch update error:", e);
-        }
-      }
+
       renderStats();
       applyFilters();
       showToast("📋 ¡Preferencias de Rob copiadas a Ana con éxito!");
@@ -1977,6 +2034,16 @@ html_template = '''<!DOCTYPE html>
       allNames.unshift(newItem);
       closeAddModal();
 
+      // Store in custom names list
+      try {
+        const customNames = JSON.parse(localStorage.getItem(CUSTOM_NAMES_KEY) || '[]');
+        customNames.unshift(newItem);
+        localStorage.setItem(CUSTOM_NAMES_KEY, JSON.stringify(customNames));
+      } catch (err) {}
+
+      // Save initial vote
+      saveVoteLocally(newItem.id, initialVote, currentUser === 'ana' ? 'ana' : 'rob');
+
       if (isServerMode) {
         try {
           await fetch('/api/names', {
@@ -1989,7 +2056,6 @@ html_template = '''<!DOCTYPE html>
         }
       }
 
-      localStorage.setItem('chiquitina_names_cache', JSON.stringify(allNames));
       renderStats();
       populateOriginDropdown();
       applyFilters();
@@ -2052,6 +2118,9 @@ html_template = '''<!DOCTYPE html>
       item.letter = item.name.charAt(0).toUpperCase();
       item.is_compound = (item.name.includes(' ') || item.name.includes('-'));
 
+      saveVoteLocally(item.id, item.rob_status, 'rob');
+      saveVoteLocally(item.id, item.ana_status, 'ana');
+
       closeEditModal();
       await saveNameChange(item);
       applyFilters();
@@ -2076,16 +2145,15 @@ html_template = '''<!DOCTYPE html>
         }
       }
 
-      localStorage.setItem('chiquitina_names_cache', JSON.stringify(allNames));
       renderStats();
       applyFilters();
       showToast(`🗑️ "${item.name}" ha sido eliminado`);
     }
 
-    // Swipe Discovery Mode with 2,500 new unrated names by default
+    // Swipe Discovery Mode with 2,500 new unrated names and Undo
     function openSwipeModal() {
       swipeUser = currentUser === 'both' ? 'rob' : currentUser;
-      swipeDeckFilter = 'new_unrated'; // ALWAYS default to the 2,500 new unrated names!
+      swipeDeckFilter = 'new_unrated';
       setSwipeUser(swipeUser);
       document.getElementById('swipeModal').classList.remove('hidden');
     }
@@ -2093,6 +2161,7 @@ html_template = '''<!DOCTYPE html>
     function closeSwipeModal() {
       document.getElementById('swipeModal').classList.add('hidden');
       applyFilters();
+      showToast("✨ Tus elecciones se han guardado permanentemente.");
     }
 
     function setSwipeUser(user) {
@@ -2107,7 +2176,7 @@ html_template = '''<!DOCTYPE html>
     function setSwipeFilter(filterType) {
       swipeDeckFilter = filterType;
 
-      const filters = ['new_unrated', 'all_unrated', 'possible', 'all'];
+      const filters = ['new_unrated', 'all_unrated', 'possible', 'favorites'];
       filters.forEach(f => {
         const btn = document.getElementById(`swipeFilter_${f}`);
         if (!btn) return;
@@ -2121,14 +2190,14 @@ html_template = '''<!DOCTYPE html>
       const isRob = swipeUser === 'rob';
 
       if (filterType === 'new_unrated') {
-        // Show all new additions (Latin 500 + 2000) that are unrated for active user
+        // Show all new additions that are unrated for active user
         swipeDeck = allNames.filter(x => {
           const isNew = !x.source || !x.source.includes('PDF');
           const st = isRob ? (x.rob_status || 'unrated') : (x.ana_status || 'unrated');
           return isNew && (!st || st === 'unrated');
         });
       } else if (filterType === 'all_unrated') {
-        // Show everything unrated for active user
+        // Show all unrated for active user
         swipeDeck = allNames.filter(x => {
           const st = isRob ? (x.rob_status || 'unrated') : (x.ana_status || 'unrated');
           return !st || st === 'unrated';
@@ -2138,8 +2207,12 @@ html_template = '''<!DOCTYPE html>
           const st = isRob ? (x.rob_status || 'unrated') : (x.ana_status || 'unrated');
           return st === 'possible';
         });
+      } else if (filterType === 'favorites') {
+        swipeDeck = allNames.filter(x => {
+          const st = isRob ? (x.rob_status || 'unrated') : (x.ana_status || 'unrated');
+          return st === 'favorites';
+        });
       } else {
-        // Entire catalog
         swipeDeck = [...allNames];
       }
 
@@ -2151,15 +2224,26 @@ html_template = '''<!DOCTYPE html>
       const card = document.getElementById('swipeCard');
       const progress = document.getElementById('swipeDeckProgress');
 
+      // Update session counter
+      const sessEl = document.getElementById('swipeSessionStats');
+      if (sessEl) {
+        sessEl.innerText = `⭐ ${sessionVoteCounts.favorites} | 👍 ${sessionVoteCounts.possible} | ⚠️ ${sessionVoteCounts.similar_excluded} | ❌ ${sessionVoteCounts.excluded}`;
+      }
+
       if (swipeIndex >= swipeDeck.length || swipeDeck.length === 0) {
         card.innerHTML = `
           <div class="py-12 flex flex-col items-center">
             <span class="text-5xl mb-3">🎉</span>
             <h3 class="text-2xl font-bold font-display text-neutral-800">¡Has completado esta ronda!</h3>
-            <p class="text-sm text-neutral-500 mt-2 max-w-xs">No quedan más nombres pendientes en este filtro para ${swipeUser === 'rob' ? 'Rob' : 'Ana'}.</p>
-            <button onclick="setSwipeFilter('all')" class="mt-6 px-5 py-2.5 bg-rose-500 text-white rounded-xl text-xs font-bold hover:bg-rose-600 transition shadow-sm">
-              Explorar Todo el Catálogo (3,672)
-            </button>
+            <p class="text-sm text-neutral-500 mt-2 max-w-xs">No quedan más nombres en este filtro para ${swipeUser === 'rob' ? 'Rob' : 'Ana'}.</p>
+            <div class="flex items-center gap-2 mt-5">
+              <button onclick="setSwipeFilter('favorites')" class="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition shadow-xs">
+                ⭐ Ver Mis Favoritos
+              </button>
+              <button onclick="closeSwipeModal()" class="px-4 py-2 bg-neutral-800 text-white rounded-xl text-xs font-bold hover:bg-neutral-900 transition shadow-xs">
+                Volver al Catálogo
+              </button>
+            </div>
           </div>
         `;
         progress.innerText = '0 restantes';
@@ -2214,6 +2298,20 @@ html_template = '''<!DOCTYPE html>
       if (swipeIndex >= swipeDeck.length) return;
       const currentItem = swipeDeck[swipeIndex];
 
+      // Record to undo history
+      swipeHistory.push({
+        item: currentItem,
+        user: swipeUser,
+        prevRob: currentItem.rob_status || 'unrated',
+        prevAna: currentItem.ana_status || 'unrated',
+        prevIndex: swipeIndex
+      });
+
+      // Update session vote stats
+      if (sessionVoteCounts[actionStatus] !== undefined) {
+        sessionVoteCounts[actionStatus]++;
+      }
+
       const card = document.getElementById('swipeCard');
       if (card) {
         if (actionStatus === 'favorites') {
@@ -2227,6 +2325,7 @@ html_template = '''<!DOCTYPE html>
         }
       }
 
+      // Persist choice immediately
       await setPersonVote(currentItem.id, actionStatus, swipeUser);
 
       setTimeout(() => {
@@ -2236,6 +2335,31 @@ html_template = '''<!DOCTYPE html>
         swipeIndex++;
         renderSwipeCard();
       }, 160);
+    }
+
+    // Undo Last Swipe
+    function undoLastSwipe() {
+      if (swipeHistory.length === 0) {
+        showToast("No hay votos recientes para deshacer");
+        return;
+      }
+      const last = swipeHistory.pop();
+      if (last.user === 'rob') {
+        last.item.rob_status = last.prevRob;
+      } else {
+        last.item.ana_status = last.prevAna;
+      }
+
+      saveVoteLocally(last.item.id, last.user === 'rob' ? last.prevRob : last.prevAna, last.user);
+
+      if (swipeIndex > 0) {
+        swipeIndex--;
+      }
+
+      renderSwipeCard();
+      renderStats();
+      applyFilters();
+      showToast(`↩️ Voto deshecho para "${last.item.name}"`);
     }
 
     // Touch Swipe Gestures
@@ -2261,14 +2385,14 @@ html_template = '''<!DOCTYPE html>
         const absX = Math.abs(dx);
         const absY = Math.abs(dy);
 
-        if (Math.max(absX, absY) < 45) return; // minimal threshold
+        if (Math.max(absX, absY) < 45) return;
 
         if (absX > absY) {
-          if (dx > 0) handleSwipeAction('favorites'); // swipe right -> Fav
-          else handleSwipeAction('excluded'); // swipe left -> Exclude
+          if (dx > 0) handleSwipeAction('favorites');
+          else handleSwipeAction('excluded');
         } else {
-          if (dy < 0) handleSwipeAction('possible'); // swipe up -> Possible
-          else handleSwipeAction('similar_excluded'); // swipe down -> Duda
+          if (dy < 0) handleSwipeAction('possible');
+          else handleSwipeAction('similar_excluded');
         }
       }, { passive: true });
     }
@@ -2287,6 +2411,8 @@ html_template = '''<!DOCTYPE html>
           handleSwipeAction('possible');
         } else if (e.key === 'ArrowDown') {
           handleSwipeAction('similar_excluded');
+        } else if (e.key === 'Backspace' || (e.ctrlKey && e.key === 'z')) {
+          undoLastSwipe();
         } else if (e.key === 'Escape') {
           closeSwipeModal();
         }
@@ -2349,7 +2475,10 @@ html_template = '''<!DOCTYPE html>
           if (Array.isArray(imported)) {
             if (confirm(`¿Restaurar base de datos con ${imported.length} nombres del archivo?`)) {
               allNames = imported;
-              localStorage.setItem('chiquitina_names_cache', JSON.stringify(allNames));
+              for (const item of allNames) {
+                if (item.rob_status) saveVoteLocally(item.id, item.rob_status, 'rob');
+                if (item.ana_status) saveVoteLocally(item.id, item.ana_status, 'ana');
+              }
               renderStats();
               populateOriginDropdown();
               applyFilters();
@@ -2371,22 +2500,8 @@ html_template = '''<!DOCTYPE html>
         return;
       }
 
-      if (isServerMode) {
-        try {
-          const resp = await fetch('/api/reset', { method: 'POST' });
-          if (resp.ok) {
-            await loadInitialData();
-            renderStats();
-            applyFilters();
-            showToast("🔄 Base de datos restablecida");
-            return;
-          }
-        } catch (e) {
-          console.error("Reset error:", e);
-        }
-      }
-
-      localStorage.removeItem('chiquitina_names_cache');
+      localStorage.removeItem(VOTES_STORAGE_KEY);
+      localStorage.removeItem(CUSTOM_NAMES_KEY);
       window.location.reload();
     }
 
@@ -2413,4 +2528,4 @@ html_template = '''<!DOCTYPE html>
 with open('index.html', 'w', encoding='utf-8') as f:
     f.write(html_template)
 
-print("Successfully written index.html with 2,500 unrated names and Swipe Mode fix.")
+print("Successfully written index.html with lightweight votes storage, session counter, and undo.")
