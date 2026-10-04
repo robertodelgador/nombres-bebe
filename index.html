@@ -151,6 +151,69 @@
   <!-- Main Container -->
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
 
+    <!-- Version Control Bar (Control de Versiones) -->
+    <div class="bg-gradient-to-r from-rose-50/80 via-white to-pink-50/80 rounded-3xl p-4 sm:p-5 border border-rose-200/80 shadow-sm mb-6">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        
+        <!-- Left: Version Title & Description -->
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-white border border-rose-200 flex items-center justify-center text-xl shadow-xs shrink-0">
+            📑
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-bold uppercase tracking-wider text-rose-800">Control de Versiones</span>
+              <span id="activeVersionTag" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                Todas las Versiones (1,672)
+              </span>
+            </div>
+            <p id="activeVersionDescription" class="text-xs text-neutral-600 mt-0.5">
+              Visualizando todo el catálogo consolidado: 1,172 nombres del PDF original + 500 nuevos latinos/españoles.
+            </p>
+          </div>
+        </div>
+
+        <!-- Right: Version Segmented Toggle Buttons -->
+        <div class="inline-flex p-1.5 bg-neutral-100/90 rounded-2xl border border-neutral-200/80 gap-1 flex-wrap sm:flex-nowrap">
+          
+          <!-- Option 1: PDF Versión 1.0 Original -->
+          <button 
+            id="verBtn_pdf" 
+            onclick="setVersionFilter('pdf')" 
+            class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-neutral-600 hover:text-neutral-900"
+          >
+            <span>📜</span>
+            <span>Versión 1.0 (PDF Original)</span>
+            <span id="verBadgePdf" class="px-2 py-0.5 text-[11px] font-bold rounded-lg bg-neutral-200 text-neutral-700">1,172</span>
+          </button>
+
+          <!-- Option 2: Nuevos Nombres Añadidos -->
+          <button 
+            id="verBtn_new" 
+            onclick="setVersionFilter('new')" 
+            class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-neutral-600 hover:text-neutral-900"
+          >
+            <span>✨</span>
+            <span>Nuevos Nombres (+500)</span>
+            <span id="verBadgeNew" class="px-2 py-0.5 text-[11px] font-bold rounded-lg bg-neutral-200 text-neutral-700">500</span>
+          </button>
+
+          <!-- Option 3: Todas las Versiones -->
+          <button 
+            id="verBtn_all" 
+            onclick="setVersionFilter('all')" 
+            class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-white text-neutral-900 shadow-sm border border-neutral-200/60"
+          >
+            <span>🌟</span>
+            <span>Todas las Versiones</span>
+            <span id="verBadgeAll" class="px-2 py-0.5 text-[11px] font-bold rounded-lg bg-rose-100 text-rose-800">1,672</span>
+          </button>
+
+        </div>
+
+      </div>
+    </div>
+
     <!-- Metrics Cards Banner -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
       
@@ -164,7 +227,7 @@
           <span id="metricTotal" class="text-2xl sm:text-3xl font-bold font-accent text-neutral-900">0</span>
           <span class="text-xs text-neutral-400">registrados</span>
         </div>
-        <div class="mt-1 text-[11px] text-neutral-400">PDF + 500 Latinos</div>
+        <div id="metricTotalSubtitle" class="mt-1 text-[11px] text-neutral-400">PDF + 500 Latinos</div>
       </div>
 
       <!-- Favorites -->
@@ -177,7 +240,7 @@
           <span id="metricFavorites" class="text-2xl sm:text-3xl font-bold font-accent text-amber-900">0</span>
           <span class="text-xs text-amber-700/80">seleccionados</span>
         </div>
-        <div class="mt-1 text-[11px] text-amber-600">Marcados del PDF & App</div>
+        <div id="metricFavoritesSubtitle" class="mt-1 text-[11px] text-amber-600">Marcados del PDF & App</div>
       </div>
 
       <!-- Possible -->
@@ -190,7 +253,7 @@
           <span id="metricPossible" class="text-2xl sm:text-3xl font-bold font-accent text-sky-900">0</span>
           <span class="text-xs text-sky-700/80">en consideración</span>
         </div>
-        <div class="mt-1 text-[11px] text-sky-600">Flechas PDF + 500 Nuevos</div>
+        <div id="metricPossibleSubtitle" class="mt-1 text-[11px] text-sky-600">Flechas PDF + 500 Nuevos</div>
       </div>
 
       <!-- Excluded -->
@@ -203,7 +266,7 @@
           <span id="metricExcluded" class="text-2xl sm:text-3xl font-bold font-accent text-neutral-700">0</span>
           <span class="text-xs text-neutral-400">descartados</span>
         </div>
-        <div class="mt-1 text-[11px] text-neutral-400">Tachados en revisión</div>
+        <div id="metricExcludedSubtitle" class="mt-1 text-[11px] text-neutral-400">Tachados en revisión</div>
       </div>
 
     </div>
@@ -582,6 +645,7 @@
     let filteredNames = [];
     let isServerMode = false;
     let currentFilterStatus = 'all'; // 'all' | 'favorites' | 'possible' | 'excluded'
+    let currentVersionFilter = 'all'; // 'all' | 'pdf' | 'new'
     let currentSourceFilter = 'all';
     let currentOriginFilter = 'all';
     let currentLetterFilter = '';
@@ -762,21 +826,123 @@
       }
     }
 
-    // Render Metrics
-    function renderStats() {
-      const favs = allNames.filter(x => x.status === 'favorites').length;
-      const poss = allNames.filter(x => x.status === 'possible').length;
-      const excl = allNames.filter(x => x.status === 'excluded').length;
+    function getVersionBadgeHTML(item) {
+      if (item.source && item.source.includes('PDF')) {
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200" title="Nombre de la lista original del PDF 1.0">📜 v1.0 PDF</span>`;
+      } else if (item.is_new || (item.source && item.source.includes('500'))) {
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-800 border border-purple-200" title="Nombre añadido de origen latino/español">✨ v2.0 Nuevo</span>`;
+      } else {
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200" title="Añadido manualmente">➕ Añadido</span>`;
+      }
+    }
 
-      document.getElementById('metricTotal').innerText = allNames.length.toLocaleString();
+    // Render Metrics (Respects active version filter)
+    function renderStats() {
+      let scopedNames = allNames;
+      if (currentVersionFilter === 'pdf') {
+        scopedNames = allNames.filter(x => x.source && x.source.includes('PDF'));
+      } else if (currentVersionFilter === 'new') {
+        scopedNames = allNames.filter(x => !x.source || !x.source.includes('PDF'));
+      }
+
+      const favs = scopedNames.filter(x => x.status === 'favorites').length;
+      const poss = scopedNames.filter(x => x.status === 'possible').length;
+      const excl = scopedNames.filter(x => x.status === 'excluded').length;
+
+      document.getElementById('metricTotal').innerText = scopedNames.length.toLocaleString();
       document.getElementById('metricFavorites').innerText = favs.toLocaleString();
       document.getElementById('metricPossible').innerText = poss.toLocaleString();
       document.getElementById('metricExcluded').innerText = excl.toLocaleString();
 
-      document.getElementById('tabCountAll').innerText = `(${allNames.length})`;
+      document.getElementById('tabCountAll').innerText = `(${scopedNames.length})`;
       document.getElementById('tabCountFavorites').innerText = `(${favs})`;
       document.getElementById('tabCountPossible').innerText = `(${poss})`;
       document.getElementById('tabCountExcluded').innerText = `(${excl})`;
+
+      // Update Version Control badges with total counts
+      const pdfCount = allNames.filter(x => x.source && x.source.includes('PDF')).length;
+      const newCount = allNames.filter(x => !x.source || !x.source.includes('PDF')).length;
+      const bPdf = document.getElementById('verBadgePdf');
+      const bNew = document.getElementById('verBadgeNew');
+      const bAll = document.getElementById('verBadgeAll');
+      if (bPdf) bPdf.innerText = pdfCount.toLocaleString();
+      if (bNew) bNew.innerText = newCount.toLocaleString();
+      if (bAll) bAll.innerText = allNames.length.toLocaleString();
+
+      // Update subtitle descriptions in metrics
+      const subTot = document.getElementById('metricTotalSubtitle');
+      const subFav = document.getElementById('metricFavoritesSubtitle');
+      const subPos = document.getElementById('metricPossibleSubtitle');
+      const subExc = document.getElementById('metricExcludedSubtitle');
+
+      if (currentVersionFilter === 'pdf') {
+        if (subTot) subTot.innerText = 'Lista PDF Original';
+        if (subFav) subFav.innerText = 'Resaltados c/ Flecha';
+        if (subPos) subPos.innerText = 'Marcados c/ Flecha';
+        if (subExc) subExc.innerText = 'Números Tachados';
+      } else if (currentVersionFilter === 'new') {
+        if (subTot) subTot.innerText = 'Nuevas Adiciones';
+        if (subFav) subFav.innerText = 'Nuevos Favoritos';
+        if (subPos) subPos.innerText = 'Candidatos Nuevos';
+        if (subExc) subExc.innerText = 'Nuevos Descartados';
+      } else {
+        if (subTot) subTot.innerText = 'PDF + 500 Nuevos';
+        if (subFav) subFav.innerText = 'Marcados del PDF & App';
+        if (subPos) subPos.innerText = 'Flechas PDF + Nuevos';
+        if (subExc) subExc.innerText = 'Tachados en revisión';
+      }
+    }
+
+    // Version Filter Handler
+    function setVersionFilter(ver) {
+      currentVersionFilter = ver;
+      currentPage = 1;
+
+      // Update button styles
+      ['all', 'pdf', 'new'].forEach(v => {
+        const btn = document.getElementById(`verBtn_${v}`);
+        if (!btn) return;
+        if (v === ver) {
+          btn.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-white text-neutral-900 shadow-sm border border-neutral-200/60';
+        } else {
+          btn.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-neutral-600 hover:text-neutral-900';
+        }
+      });
+
+      // Update description text and tag
+      const tag = document.getElementById('activeVersionTag');
+      const desc = document.getElementById('activeVersionDescription');
+
+      if (ver === 'pdf') {
+        if (tag) {
+          tag.innerText = 'Versión 1.0 (PDF Original)';
+          tag.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200';
+        }
+        if (desc) desc.innerText = 'Mostrando únicamente los 1,172 nombres originales revisados en el documento PDF (23 favoritos resaltados, 58 posibles con flecha, 1,091 excluidos tachados).';
+      } else if (ver === 'new') {
+        if (tag) {
+          tag.innerText = 'Nuevos Nombres Añadidos (+500)';
+          tag.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200';
+        }
+        if (desc) desc.innerText = 'Mostrando los 500 nuevos nombres femeninos de origen latino y español añadidos con significado, más los creados manualmente.';
+      } else {
+        if (tag) {
+          tag.innerText = 'Todas las Versiones (1,672)';
+          tag.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200';
+        }
+        if (desc) desc.innerText = 'Visualizando todo el catálogo consolidado: 1,172 nombres del PDF original + 500 nuevos latinos/españoles.';
+      }
+
+      // Sync with dropdown
+      const srcFilter = document.getElementById('sourceFilter');
+      if (srcFilter) {
+        if (ver === 'pdf') srcFilter.value = 'pdf';
+        else if (ver === 'new') srcFilter.value = 'latin500';
+        else srcFilter.value = 'all';
+      }
+
+      renderStats();
+      applyFilters();
     }
 
     // Populate Origins dropdown
@@ -836,7 +1002,28 @@
     function handleFilterChange() {
       currentSourceFilter = document.getElementById('sourceFilter').value;
       currentOriginFilter = document.getElementById('originFilter').value;
+
+      if (currentSourceFilter === 'pdf') {
+        currentVersionFilter = 'pdf';
+      } else if (currentSourceFilter === 'latin500' || currentSourceFilter === 'user') {
+        currentVersionFilter = 'new';
+      } else {
+        currentVersionFilter = 'all';
+      }
+
+      // Update button styling without resetting page if from dropdown
+      ['all', 'pdf', 'new'].forEach(v => {
+        const btn = document.getElementById(`verBtn_${v}`);
+        if (!btn) return;
+        if (v === currentVersionFilter) {
+          btn.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-white text-neutral-900 shadow-sm border border-neutral-200/60';
+        } else {
+          btn.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-neutral-600 hover:text-neutral-900';
+        }
+      });
+
       currentPage = 1;
+      renderStats();
       applyFilters();
     }
 
@@ -873,6 +1060,7 @@
     }
 
     function resetFilters() {
+      currentVersionFilter = 'all';
       currentFilterStatus = 'all';
       currentSourceFilter = 'all';
       currentOriginFilter = 'all';
@@ -882,6 +1070,7 @@
       document.getElementById('sourceFilter').value = 'all';
       document.getElementById('originFilter').value = 'all';
       document.getElementById('sortBy').value = 'name_asc';
+      setVersionFilter('all');
       setStatusFilter('all');
       setLetterFilter('');
     }
@@ -889,10 +1078,14 @@
     // Apply all filters and render
     function applyFilters() {
       filteredNames = allNames.filter(item => {
+        // Version filter
+        if (currentVersionFilter === 'pdf' && (!item.source || !item.source.includes('PDF'))) return false;
+        if (currentVersionFilter === 'new' && item.source && item.source.includes('PDF')) return false;
+
         // Status filter
         if (currentFilterStatus !== 'all' && item.status !== currentFilterStatus) return false;
 
-        // Source filter
+        // Source dropdown filter
         if (currentSourceFilter === 'pdf' && !item.source?.includes('PDF')) return false;
         if (currentSourceFilter === 'latin500' && !item.source?.includes('500') && !item.is_new) return false;
         if (currentSourceFilter === 'user' && item.source !== 'User Added') return false;
@@ -994,11 +1187,11 @@
                   </div>
                   <div>
                     <h3 class="text-xl font-bold font-display text-neutral-900 leading-tight group-hover:text-rose-600 transition">${item.name}</h3>
-                    <div class="flex items-center gap-1.5 mt-0.5">
+                    <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
                       <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${color.bg} ${color.text} border ${color.border}">
                         ${item.origin || 'Origen'}
                       </span>
-                      ${item.is_new ? '<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">500 Nuevos</span>' : ''}
+                      ${getVersionBadgeHTML(item)}
                     </div>
                   </div>
                 </div>
@@ -1090,8 +1283,11 @@
               ${getStatusBadgeHTML(item.status)}
             </td>
             <td class="py-3 px-4 text-xs text-neutral-500">
-              <div>${item.source || ''}</div>
-              ${item.notes ? `<div class="text-[11px] text-amber-700 font-medium">📌 ${item.notes}</div>` : ''}
+              <div class="flex items-center gap-1.5 flex-wrap">
+                ${getVersionBadgeHTML(item)}
+                ${item.page ? `<span class="text-[10px] text-neutral-400 font-mono">(${item.page.replace('.png','')})</span>` : ''}
+              </div>
+              ${item.notes ? `<div class="text-[11px] text-amber-700 font-medium mt-1">📌 ${item.notes}</div>` : ''}
             </td>
             <td class="py-3 px-4 text-right">
               <div class="inline-flex items-center gap-1">
