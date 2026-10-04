@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Builds the complete, production-ready index.html for 'Nombres para Chiquitina' with:
-1. Two-person preference support (Rob & Ana)
-2. Interactive user switcher: Rob / Ana / Ambos (Matches)
-3. 4-Category hierarchy + Coincidencias/Matches
-4. 1-tap quick action voting buttons on cards
-5. Partner rating display & companion pill
-6. Swipe mode with person selector and pending filter
-7. 3,672 names embedded with Santoral, Spanish meaning, and origin
-8. Mobile sticky navigation dock optimized for one-hand use
-9. Version Control (PDF v1.0, Nuevos Hispanos, Todo el Catálogo)
+Builds production-ready index.html with:
+1. 2,500 new unrated names waiting for Rob and Ana to classify them!
+2. Swipe mode defaults to 'Nuevos por Clasificar' (2,500 names) so it NEVER says 'all done'!
+3. Touch drag & keyboard swipe gestures (← Excluir, ↓ Duda, ↑ Posible, → Favorito)
+4. Cache versioning ('chiquitina_v4_cache') so the browser immediately invalidates old cache
+5. Comprehensive metrics banner with '⏳ Por Clasificar' count
+6. Dedicated '⏳ Por Clasificar' filter tab in the main ribbon
+7. Partner status display on every card and inside Swipe mode
+8. Mobile sticky dock with direct access to Swipe, Favoritos and Matches
 """
 
 import json
@@ -112,9 +111,9 @@ html_template = '''<!DOCTYPE html>
       border: 1px solid #e5e7eb;
     }
     .badge-unrated {
-      background: #fafaf9;
-      color: #78716c;
-      border: 1px dashed #d6d3d1;
+      background: #fffbeb;
+      color: #b45309;
+      border: 1px dashed #f59e0b;
     }
     .badge-super-match {
       background: linear-gradient(135deg, #ff2e93 0%, #ff80bf 50%, #ffa31a 100%);
@@ -125,6 +124,10 @@ html_template = '''<!DOCTYPE html>
       background: linear-gradient(135deg, #059669 0%, #34d399 100%);
       color: #ffffff;
       box-shadow: 0 3px 10px 0 rgba(5, 150, 105, 0.25);
+    }
+    .swipe-card-touch {
+      touch-action: pan-y;
+      user-select: none;
     }
   </style>
 </head>
@@ -187,9 +190,9 @@ html_template = '''<!DOCTYPE html>
 
         <!-- Header Actions -->
         <div class="flex items-center space-x-2 sm:space-x-3">
-          <button onclick="openSwipeModal()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-md shadow-amber-200/50 hover:shadow-lg hover:from-amber-600 hover:to-rose-600 transition active:scale-95">
-            <span>✨</span>
-            <span class="hidden sm:inline">Modo Swipe</span>
+          <button onclick="openSwipeModal()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 text-white shadow-md shadow-rose-200/60 hover:shadow-lg hover:scale-105 transition active:scale-95 animate-pulse">
+            <span class="text-base">✨</span>
+            <span class="hidden sm:inline">Modo Swipe (+2,500)</span>
             <span class="sm:hidden">Swipe</span>
           </button>
 
@@ -204,7 +207,11 @@ html_template = '''<!DOCTYPE html>
               <span>⚙️</span>
               <span class="text-[10px]">▼</span>
             </button>
-            <div class="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-neutral-100 py-2 hidden group-hover:block z-50">
+            <div class="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-neutral-100 py-2 hidden group-hover:block z-50">
+              <button onclick="openSwipeModal()" class="w-full text-left px-4 py-2 text-xs text-rose-700 font-bold hover:bg-rose-50 flex items-center gap-2">
+                <span>✨</span> Abrir Modo Swipe (Clasificar Nuevos)
+              </button>
+              <div class="border-t border-neutral-100 my-1"></div>
               <button onclick="exportToCSV()" class="w-full text-left px-4 py-2 text-xs text-neutral-700 hover:bg-rose-50 hover:text-rose-700 flex items-center gap-2">
                 <span>📊</span> Exportar a Excel (c/ Votos Rob & Ana)
               </button>
@@ -232,9 +239,9 @@ html_template = '''<!DOCTYPE html>
   </header>
 
   <!-- Mobile Person Selector Ribbon (Visible on small screens) -->
-  <div class="md:hidden bg-gradient-to-r from-blue-50/70 via-pink-50/70 to-rose-50/70 border-b border-rose-100/80 px-4 py-2.5">
+  <div class="md:hidden bg-gradient-to-r from-blue-50/80 via-pink-50/80 to-rose-50/80 border-b border-rose-100/80 px-4 py-2.5">
     <div class="flex items-center justify-between gap-2">
-      <span class="text-xs font-bold text-neutral-600">👤 Calificando:</span>
+      <span class="text-xs font-bold text-neutral-600">👤 Votando:</span>
       <div class="inline-flex p-1 bg-white rounded-xl border border-neutral-200/80 shadow-2xs gap-1 flex-1 justify-end">
         <button 
           id="mobUserSwitch_rob" 
@@ -279,20 +286,20 @@ html_template = '''<!DOCTYPE html>
               </span>
             </div>
             <p id="userGreetingSubtitle" class="text-xs text-neutral-600 mt-0.5">
-              Cada voto que hagas registrará tu opinión como Rob. Al mismo tiempo podrás ver lo que Ana ha opinado.
+              ¡Tienes 2,500 nombres nuevos listos para clasificar en el modo Swipe o directamente en las tarjetas!
             </p>
           </div>
         </div>
         
         <!-- Fast Switch Quick Buttons -->
         <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          <button onclick="openSwipeModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white shadow-2xs transition flex items-center gap-1.5">
+            <span>✨</span>
+            <span>Clasificar en Swipe</span>
+          </button>
           <button onclick="switchUser(currentUser === 'rob' ? 'ana' : 'rob')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-neutral-700 hover:bg-neutral-100 border border-neutral-200 shadow-2xs transition flex items-center gap-1.5">
             <span>⇄</span>
             <span id="toggleUserBtnLabel">Cambiar a Ana</span>
-          </button>
-          <button onclick="setStatusFilter('matches')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-pink-500 hover:bg-pink-600 text-white shadow-2xs transition flex items-center gap-1.5">
-            <span>💖</span>
-            <span>Ver Coincidencias</span>
           </button>
         </div>
       </div>
@@ -315,7 +322,7 @@ html_template = '''<!DOCTYPE html>
               </span>
             </div>
             <p id="activeVersionDescription" class="text-xs text-neutral-600 mt-0.5">
-              Visualizando todo el catálogo consolidado: 1,172 nombres del PDF original v1.0 + 2,500 nuevos nombres hispanos y compuestos.
+              1,172 nombres del PDF v1.0 original ya clasificados + 2,500 nuevos nombres hispanos y latinos por descubrir.
             </p>
           </div>
         </div>
@@ -323,33 +330,33 @@ html_template = '''<!DOCTYPE html>
         <!-- Right: Version Segmented Toggle Buttons -->
         <div class="inline-flex p-1.5 bg-neutral-100/90 rounded-2xl border border-neutral-200/80 gap-1 flex-wrap sm:flex-nowrap">
           
-          <!-- Option 1: PDF Versión 1.0 Original -->
+          <!-- Option 1: Nuevos Nombres Añadidos (Promoted first for fast access) -->
+          <button 
+            id="verBtn_new" 
+            onclick="setVersionFilter('new')" 
+            class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-neutral-600 hover:text-neutral-900"
+          >
+            <span>✨</span>
+            <span>Nuevos Hispanos (+2,500)</span>
+            <span id="verBadgeNew" class="px-2 py-0.5 text-[11px] font-bold rounded-lg bg-purple-100 text-purple-800">2,500</span>
+          </button>
+
+          <!-- Option 2: PDF Versión 1.0 Original -->
           <button 
             id="verBtn_pdf" 
             onclick="setVersionFilter('pdf')" 
-            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-neutral-600 hover:text-neutral-900"
+            class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-neutral-600 hover:text-neutral-900"
           >
             <span>📜</span>
             <span>Versión 1.0 (PDF)</span>
             <span id="verBadgePdf" class="px-2 py-0.5 text-[11px] font-bold rounded-lg bg-neutral-200 text-neutral-700">1,172</span>
           </button>
 
-          <!-- Option 2: Nuevos Nombres Añadidos -->
-          <button 
-            id="verBtn_new" 
-            onclick="setVersionFilter('new')" 
-            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-neutral-600 hover:text-neutral-900"
-          >
-            <span>✨</span>
-            <span>Nuevos Hispanos (+2,500)</span>
-            <span id="verBadgeNew" class="px-2 py-0.5 text-[11px] font-bold rounded-lg bg-neutral-200 text-neutral-700">2,500</span>
-          </button>
-
           <!-- Option 3: Todas las Versiones -->
           <button 
             id="verBtn_all" 
             onclick="setVersionFilter('all')" 
-            class="px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-white text-neutral-900 shadow-sm border border-neutral-200/60"
+            class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-white text-neutral-900 shadow-sm border border-neutral-200/60"
           >
             <span>🌟</span>
             <span>Todo el Catálogo</span>
@@ -377,17 +384,30 @@ html_template = '''<!DOCTYPE html>
         <div id="metricTotalSubtitle" class="mt-1 text-[11px] text-neutral-400">PDF + Hispanos</div>
       </div>
 
-      <!-- Favorites -->
-      <div onclick="setStatusFilter('favorites')" class="cursor-pointer bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-4 border border-amber-200 shadow-xs hover:border-amber-400 transition card-transition">
+      <!-- Pendientes por Clasificar (Highlighted prominently!) -->
+      <div onclick="setStatusFilter('unrated')" class="cursor-pointer bg-gradient-to-br from-amber-50/90 to-yellow-50/50 rounded-2xl p-4 border-2 border-amber-300 shadow-xs hover:border-amber-400 transition card-transition">
         <div class="flex items-center justify-between">
-          <span id="cardLabelFavorites" class="text-xs font-semibold text-amber-800 uppercase tracking-wider">⭐ Favoritos</span>
+          <span id="cardLabelUnrated" class="text-xs font-bold text-amber-900 uppercase tracking-wider">⏳ Por Clasificar</span>
+          <span class="text-xl">✨</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="metricUnrated" class="text-2xl sm:text-3xl font-bold font-accent text-amber-950">2,500</span>
+          <span class="text-xs text-amber-700/80">listos p/ swipe</span>
+        </div>
+        <div id="metricUnratedSubtitle" class="mt-1 text-[11px] text-amber-700 font-medium">Nuevos por votar</div>
+      </div>
+
+      <!-- Favorites -->
+      <div onclick="setStatusFilter('favorites')" class="cursor-pointer bg-gradient-to-br from-rose-50 to-pink-50/50 rounded-2xl p-4 border border-rose-200 shadow-xs hover:border-rose-400 transition card-transition">
+        <div class="flex items-center justify-between">
+          <span id="cardLabelFavorites" class="text-xs font-semibold text-rose-800 uppercase tracking-wider">⭐ Favoritos</span>
           <span class="text-xl">⭐</span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
-          <span id="metricFavorites" class="text-2xl sm:text-3xl font-bold font-accent text-amber-900">23</span>
-          <span class="text-xs text-amber-700/80">elegidos</span>
+          <span id="metricFavorites" class="text-2xl sm:text-3xl font-bold font-accent text-rose-900">23</span>
+          <span class="text-xs text-rose-700/80">elegidos</span>
         </div>
-        <div id="metricFavoritesSubtitle" class="mt-1 text-[11px] text-amber-600">Top preferencias</div>
+        <div id="metricFavoritesSubtitle" class="mt-1 text-[11px] text-rose-600">Top preferencias</div>
       </div>
 
       <!-- Possible -->
@@ -397,26 +417,13 @@ html_template = '''<!DOCTYPE html>
           <span class="text-xl">👍</span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
-          <span id="metricPossible" class="text-2xl sm:text-3xl font-bold font-accent text-sky-900">699</span>
+          <span id="metricPossible" class="text-2xl sm:text-3xl font-bold font-accent text-sky-900">58</span>
           <span class="text-xs text-sky-700/80">en consideración</span>
         </div>
         <div id="metricPossibleSubtitle" class="mt-1 text-[11px] text-sky-600">Candidatos viables</div>
       </div>
 
-      <!-- Similar to Excluded / En Duda -->
-      <div onclick="setStatusFilter('similar_excluded')" class="cursor-pointer bg-gradient-to-br from-orange-50 to-amber-50/50 rounded-2xl p-4 border border-orange-200 shadow-xs hover:border-orange-400 transition card-transition">
-        <div class="flex items-center justify-between">
-          <span id="cardLabelSimilar" class="text-xs font-semibold text-orange-800 uppercase tracking-wider">⚠️ En Duda</span>
-          <span class="text-xl">⚠️</span>
-        </div>
-        <div class="mt-2 flex items-baseline gap-2">
-          <span id="metricSimilar" class="text-2xl sm:text-3xl font-bold font-accent text-orange-950">1,859</span>
-          <span class="text-xs text-orange-700/80">con reparos</span>
-        </div>
-        <div id="metricSimilarSubtitle" class="mt-1 text-[11px] text-orange-600">Similares a excluidos v1</div>
-      </div>
-
-      <!-- Excluded / Pendientes -->
+      <!-- Excluded -->
       <div onclick="setStatusFilter('excluded')" class="cursor-pointer bg-white rounded-2xl p-4 border border-neutral-200/80 shadow-xs hover:border-neutral-400 transition card-transition">
         <div class="flex items-center justify-between">
           <span id="cardLabelExcluded" class="text-xs font-semibold text-neutral-500 uppercase tracking-wider">❌ Excluidos</span>
@@ -426,12 +433,12 @@ html_template = '''<!DOCTYPE html>
           <span id="metricExcluded" class="text-2xl sm:text-3xl font-bold font-accent text-neutral-700">1,091</span>
           <span class="text-xs text-neutral-400">descartados</span>
         </div>
-        <div id="metricExcludedSubtitle" class="mt-1 text-[11px] text-neutral-400">Rechazados</div>
+        <div id="metricExcludedSubtitle" class="mt-1 text-[11px] text-neutral-400">Tachados v1.0</div>
       </div>
 
     </div>
 
-    <!-- Match Highlights Box (When Both agreed on names) -->
+    <!-- Match Highlights Box -->
     <div id="matchHighlightsBanner" class="bg-gradient-to-r from-pink-500 via-rose-500 to-amber-500 rounded-3xl p-4 sm:p-5 text-white shadow-md mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div class="flex items-center gap-3">
         <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-2xl shadow-inner shrink-0">
@@ -443,7 +450,7 @@ html_template = '''<!DOCTYPE html>
             <span id="superMatchCountTag" class="px-2 py-0.5 rounded-full text-xs font-bold bg-white text-rose-600">23 Super Matches</span>
           </div>
           <p class="text-xs text-white/90 mt-0.5">
-            ¡Descubran qué nombres le gustan a ambos! Cuando Rob y Ana coinciden, se crea un Match instantáneo.
+            ¡Descubran qué nombres le gustan a ambos! Cada vez que coincidan en ⭐ Favorito o 👍 Posible, aparecerá aquí como un Match.
           </p>
         </div>
       </div>
@@ -510,7 +517,7 @@ html_template = '''<!DOCTYPE html>
           <select id="sortBy" onchange="handleSortChange()" class="py-2.5 px-3 bg-neutral-50 border border-neutral-200 rounded-xl text-xs sm:text-sm font-medium text-neutral-700 focus:outline-none focus:ring-2 focus:ring-rose-400">
             <option value="name_asc">Nombre (A → Z)</option>
             <option value="name_desc">Nombre (Z → A)</option>
-            <option value="status_priority">Preferencia (⭐ → 👍 → ⚠️ → ❌)</option>
+            <option value="status_priority">Preferencia (⭐ → 👍 → ⏳ → ❌)</option>
             <option value="origin_asc">Origen (A → Z)</option>
           </select>
 
@@ -536,6 +543,10 @@ html_template = '''<!DOCTYPE html>
             Todos <span id="tabCountAll" class="ml-1 text-[11px] opacity-70">(3,672)</span>
           </button>
 
+          <button onclick="setStatusFilter('unrated')" id="tab_unrated" class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 text-white shadow-xs transition shrink-0 flex items-center gap-1">
+            <span>⏳ Por Clasificar</span> <span id="tabCountUnrated" class="text-[11px] font-mono">(2,500)</span>
+          </button>
+
           <button onclick="setStatusFilter('super_matches')" id="tab_super_matches" class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-pink-100 text-pink-800 hover:bg-pink-200 border border-pink-300 transition shrink-0 flex items-center gap-1">
             <span>💖 Super Matches</span> <span id="tabCountSuperMatches" class="text-[11px] font-mono">(23)</span>
           </button>
@@ -549,19 +560,15 @@ html_template = '''<!DOCTYPE html>
           </button>
 
           <button onclick="setStatusFilter('possible')" id="tab_possible" class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-neutral-100 text-neutral-600 hover:bg-neutral-200 transition shrink-0">
-            👍 Posibles <span id="tabCountPossible" class="ml-1 text-[11px] opacity-70">(699)</span>
+            👍 Posibles <span id="tabCountPossible" class="ml-1 text-[11px] opacity-70">(58)</span>
           </button>
 
           <button onclick="setStatusFilter('similar_excluded')" id="tab_similar_excluded" class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-orange-50 text-orange-800 border border-orange-200 hover:bg-orange-100 transition shrink-0">
-            ⚠️ En Duda <span id="tabCountSimilar" class="ml-1 text-[11px] opacity-70">(1,859)</span>
+            ⚠️ En Duda <span id="tabCountSimilar" class="ml-1 text-[11px] opacity-70">(0)</span>
           </button>
 
           <button onclick="setStatusFilter('excluded')" id="tab_excluded" class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-neutral-100 text-neutral-600 hover:bg-neutral-200 transition shrink-0">
             ❌ Excluidos <span id="tabCountExcluded" class="ml-1 text-[11px] opacity-70">(1,091)</span>
-          </button>
-
-          <button onclick="setStatusFilter('unrated')" id="tab_unrated" class="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-neutral-100 text-neutral-600 hover:bg-neutral-200 transition shrink-0">
-            ⏳ Pendientes <span id="tabCountUnrated" class="ml-1 text-[11px] opacity-70">(0)</span>
           </button>
 
         </div>
@@ -642,12 +649,12 @@ html_template = '''<!DOCTYPE html>
       <span class="mt-0.5" id="dockUserLabel">Rob</span>
     </button>
     
-    <button onclick="setStatusFilter('favorites'); window.scrollTo({ top: 380, behavior: 'smooth' });" class="flex flex-col items-center justify-center text-[10px] font-semibold text-amber-800 hover:text-amber-900 transition active:scale-95">
-      <span class="text-lg">⭐</span>
-      <span class="mt-0.5">Favoritos</span>
+    <button onclick="setStatusFilter('unrated'); window.scrollTo({ top: 380, behavior: 'smooth' });" class="flex flex-col items-center justify-center text-[10px] font-semibold text-amber-800 hover:text-amber-900 transition active:scale-95">
+      <span class="text-lg">⏳</span>
+      <span class="mt-0.5">Pendientes</span>
     </button>
 
-    <button onclick="openSwipeModal()" class="flex flex-col items-center justify-center -mt-6 bg-gradient-to-tr from-amber-500 via-rose-500 to-pink-500 text-white rounded-2xl w-14 h-14 p-2 shadow-lg shadow-rose-300 transition active:scale-90 border-2 border-white">
+    <button onclick="openSwipeModal()" class="flex flex-col items-center justify-center -mt-6 bg-gradient-to-tr from-amber-500 via-rose-500 to-pink-500 text-white rounded-2xl w-14 h-14 p-2 shadow-lg shadow-rose-300 transition active:scale-90 border-2 border-white animate-bounce">
       <span class="text-2xl">✨</span>
       <span class="text-[9px] font-bold">Swipe</span>
     </button>
@@ -845,8 +852,8 @@ html_template = '''<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- Swipe Discovery Mode Modal (Tinder-style 4-Way with Person Selection) -->
-  <div id="swipeModal" class="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-50 hidden flex flex-col items-center justify-center p-4">
+  <!-- Swipe Discovery Mode Modal (Tinder-style 4-Way with Person Selection & Touch Gestures) -->
+  <div id="swipeModal" class="fixed inset-0 bg-neutral-950/85 backdrop-blur-md z-50 hidden flex flex-col items-center justify-center p-3 sm:p-4">
     <div class="max-w-md w-full flex flex-col items-center">
       
       <!-- Top header bar -->
@@ -854,74 +861,75 @@ html_template = '''<!DOCTYPE html>
         <div class="flex items-center gap-2">
           <span class="text-xl">✨</span>
           <span class="font-bold text-sm">Modo Swipe para Pareja</span>
-          <span id="swipeDeckProgress" class="text-xs bg-white/20 px-2.5 py-0.5 rounded-full">0 restantes</span>
+          <span id="swipeDeckProgress" class="text-xs font-bold bg-amber-400 text-amber-950 px-2.5 py-0.5 rounded-full shadow-xs">2,500 restantes</span>
         </div>
         <button onclick="closeSwipeModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm font-bold text-white transition">✕</button>
       </div>
 
       <!-- Who is swiping selector -->
-      <div class="w-full bg-white/10 backdrop-blur-md rounded-2xl p-1.5 mb-3 flex items-center justify-between border border-white/10">
-        <div class="text-xs text-white/80 font-bold px-2 flex items-center gap-1">
-          <span>Votando:</span>
+      <div class="w-full bg-white/10 backdrop-blur-md rounded-2xl p-1.5 mb-2.5 flex items-center justify-between border border-white/10">
+        <div class="text-xs text-white/90 font-bold px-2 flex items-center gap-1">
+          <span>Calificando como:</span>
         </div>
         <div class="inline-flex gap-1">
           <button 
             id="swipeUser_rob" 
             onclick="setSwipeUser('rob')" 
-            class="px-3 py-1 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-xs transition"
+            class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-xs transition"
           >
             👨 Rob
           </button>
           <button 
             id="swipeUser_ana" 
             onclick="setSwipeUser('ana')" 
-            class="px-3 py-1 rounded-xl text-xs font-bold text-white/70 hover:text-white transition"
+            class="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white/70 hover:text-white transition"
           >
             👩 Ana
           </button>
         </div>
       </div>
 
-      <!-- Filter deck selector -->
-      <div class="w-full flex items-center justify-center gap-1.5 mb-4 flex-wrap">
-        <button onclick="setSwipeFilter('unrated')" id="swipeFilter_unrated" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500 text-white shadow-xs transition">
-          ⏳ Mis Pendientes
+      <!-- Filter deck selector (With Nuevos por Clasificar active by default) -->
+      <div class="w-full flex items-center justify-center gap-1.5 mb-3 flex-wrap">
+        <button onclick="setSwipeFilter('new_unrated')" id="swipeFilter_new_unrated" class="px-3 py-1 rounded-full text-xs font-bold bg-rose-500 text-white shadow-xs transition">
+          ✨ Nuevos por Clasificar (+2,500)
         </button>
-        <button onclick="setSwipeFilter('latin500')" id="swipeFilter_latin500" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition">
-          ✨ Nuevos Hispanos
+        <button onclick="setSwipeFilter('all_unrated')" id="swipeFilter_all_unrated" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition">
+          ⏳ Todo lo Pendiente
         </button>
-        <button onclick="setSwipeFilter('possible')" id="swipeFilter_possible" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition">
-          👍 Todos los Posibles
+        <button onclick="setSwipeFilter('possible')" id="swipeFilter_possible" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition">
+          👍 Mis Posibles
         </button>
-        <button onclick="setSwipeFilter('all')" id="swipeFilter_all" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition">
+        <button onclick="setSwipeFilter('all')" id="swipeFilter_all" class="px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition">
           🌟 Todo el Catálogo
         </button>
       </div>
 
-      <!-- The Swipe Card -->
-      <div id="swipeCard" class="w-full bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-neutral-100 flex flex-col items-center text-center relative min-h-[360px] justify-between transition-all duration-300">
+      <!-- The Swipe Card (Touch & Drag Enabled) -->
+      <div id="swipeCard" class="swipe-card-touch w-full bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-neutral-100 flex flex-col items-center text-center relative min-h-[380px] justify-between transition-all duration-300">
         
         <!-- Letter Tag & Origin Badge -->
         <div class="w-full flex items-center justify-between">
           <span id="swipeLetter" class="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 font-bold font-accent flex items-center justify-center text-lg shadow-inner">A</span>
           <span id="swipeOrigin" class="px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">Latino</span>
-          <span id="swipeSource" class="text-[11px] text-neutral-400 font-medium">Catálogo</span>
+          <span id="swipeSource" class="text-[11px] text-neutral-400 font-medium">Nuevo</span>
         </div>
 
-        <!-- Partner's vote badge -->
+        <!-- Partner's vote tag in Swipe -->
         <div id="swipePartnerVoteTag" class="w-full mt-2"></div>
 
         <!-- Big Name & Meaning -->
-        <div class="my-auto py-4">
-          <h2 id="swipeName" class="text-3xl sm:text-4xl font-bold font-display text-neutral-900 tracking-tight mb-2">Valentina</h2>
-          <p id="swipeMeaning" class="text-sm sm:text-base italic text-neutral-600 font-serif leading-relaxed px-2">"Fuerte, valiente, llena de salud y vida."</p>
+        <div class="my-auto py-3">
+          <h2 id="swipeName" class="text-3xl sm:text-4xl font-bold font-display text-neutral-900 tracking-tight mb-2">Abril</h2>
+          <p id="swipeMeaning" class="text-sm sm:text-base italic text-neutral-600 font-serif leading-relaxed px-2">"Apertura, frescura y renacer de la primavera"</p>
           <div id="swipeSaint" class="mt-2 text-xs text-purple-800 bg-purple-50 px-3 py-1 rounded-xl border border-purple-200 inline-block font-medium"></div>
+          <div id="swipeSimilarity" class="mt-2 text-xs text-orange-800 bg-orange-50 px-3 py-1 rounded-xl border border-orange-200 inline-block font-medium hidden"></div>
         </div>
 
         <!-- Current Status Pill -->
         <div class="w-full pt-3 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-400">
-          <span>Tu voto actual: <b id="swipeCurrentStatus" class="text-neutral-700 font-bold">Pendiente</b></span>
-          <span class="text-[11px] hidden sm:inline">Teclas: ← ↓ ↑ →</span>
+          <span>Tu voto actual: <b id="swipeCurrentStatus" class="text-amber-800 font-bold">Por clasificar</b></span>
+          <span class="text-[11px] text-neutral-400">Desliza o usa botones</span>
         </div>
 
       </div>
@@ -929,22 +937,22 @@ html_template = '''<!DOCTYPE html>
       <!-- Control Buttons (4 Actions) -->
       <div class="w-full grid grid-cols-4 gap-2 mt-4">
         <button onclick="handleSwipeAction('excluded')" class="flex flex-col items-center justify-center py-3 px-2 bg-white/10 hover:bg-red-500 hover:text-white text-white rounded-2xl border border-white/20 transition active:scale-95 group">
-          <span class="text-xl group-hover:scale-110 transition">❌</span>
+          <span class="text-2xl group-hover:scale-110 transition">❌</span>
           <span class="text-[10px] font-bold mt-1">Excluir (←)</span>
         </button>
 
         <button onclick="handleSwipeAction('similar_excluded')" class="flex flex-col items-center justify-center py-3 px-2 bg-white/10 hover:bg-orange-500 hover:text-white text-white rounded-2xl border border-white/20 transition active:scale-95 group">
-          <span class="text-xl group-hover:scale-110 transition">⚠️</span>
+          <span class="text-2xl group-hover:scale-110 transition">⚠️</span>
           <span class="text-[10px] font-bold mt-1">Duda (↓)</span>
         </button>
 
         <button onclick="handleSwipeAction('possible')" class="flex flex-col items-center justify-center py-3 px-2 bg-white/10 hover:bg-sky-500 hover:text-white text-white rounded-2xl border border-white/20 transition active:scale-95 group">
-          <span class="text-xl group-hover:scale-110 transition">👍</span>
+          <span class="text-2xl group-hover:scale-110 transition">👍</span>
           <span class="text-[10px] font-bold mt-1">Posible (↑)</span>
         </button>
 
         <button onclick="handleSwipeAction('favorites')" class="flex flex-col items-center justify-center py-3 px-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white rounded-2xl shadow-lg shadow-orange-500/30 transition active:scale-95 group">
-          <span class="text-xl group-hover:scale-110 transition">⭐</span>
+          <span class="text-2xl group-hover:scale-110 transition">⭐</span>
           <span class="text-[10px] font-bold mt-1">Favorito (→)</span>
         </button>
       </div>
@@ -981,7 +989,7 @@ html_template = '''<!DOCTYPE html>
     let swipeDeck = [];
     let swipeIndex = 0;
     let swipeUser = currentUser === 'both' ? 'rob' : currentUser;
-    let swipeDeckFilter = 'unrated';
+    let swipeDeckFilter = 'new_unrated';
 
     // Color mapper for origins
     const originColors = {
@@ -1007,7 +1015,7 @@ html_template = '''<!DOCTYPE html>
 
     // Initialize App
     window.addEventListener('DOMContentLoaded', async () => {
-      // 1. Load embedded data
+      // 1. Load embedded baseline data
       const embeddedScript = document.getElementById('embeddedNamesData');
       if (embeddedScript) {
         try {
@@ -1023,6 +1031,7 @@ html_template = '''<!DOCTYPE html>
       populateOriginDropdown();
       applyFilters();
       setupKeyboardListeners();
+      setupSwipeGestures();
     });
 
     // Alphabet bar builder
@@ -1036,21 +1045,24 @@ html_template = '''<!DOCTYPE html>
       `).join('');
     }
 
-    // Load Data from Server or Local Storage
+    // Load Data from Server or Local Storage with Version Invalidation
     async function loadInitialData() {
       const connBadge = document.getElementById('connectionBadge');
       const connText = document.getElementById('connectionText');
+      const CURRENT_CACHE_VERSION = 'chiquitina_v5_unrated_new_2500';
 
+      // 1. Try server
       try {
         const resp = await fetch('/api/names');
         if (resp.ok) {
           const json = await resp.json();
-          if (json.success && Array.isArray(json.data)) {
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
             allNames = json.data;
             isServerMode = true;
             if (connBadge) connBadge.className = 'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
             if (connText) connText.innerText = 'Servidor Conectado';
             localStorage.setItem('chiquitina_names_cache', JSON.stringify(allNames));
+            localStorage.setItem('chiquitina_cache_ver', CURRENT_CACHE_VERSION);
             return;
           }
         }
@@ -1058,7 +1070,18 @@ html_template = '''<!DOCTYPE html>
         console.log("Servidor local no disponible, recurriendo a localStorage/embedded data", e);
       }
 
-      // Check localStorage
+      // 2. Cache version check: if old cache exists, discard it to load fresh 2,500 unrated names
+      const savedVer = localStorage.getItem('chiquitina_cache_ver');
+      if (savedVer !== CURRENT_CACHE_VERSION) {
+        localStorage.removeItem('chiquitina_names_cache');
+        localStorage.removeItem('bebe_names_cache');
+        localStorage.setItem('chiquitina_cache_ver', CURRENT_CACHE_VERSION);
+        // keep allNames from embedded data
+        localStorage.setItem('chiquitina_names_cache', JSON.stringify(allNames));
+        return;
+      }
+
+      // 3. Check localStorage
       const cached = localStorage.getItem('chiquitina_names_cache');
       if (cached) {
         try {
@@ -1143,14 +1166,14 @@ html_template = '''<!DOCTYPE html>
         if (avatarPill) { avatarPill.innerText = '👨'; avatarPill.className = 'w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-2xl shadow-sm shrink-0'; }
         if (title) title.innerText = 'Panel de Preferencias de Rob';
         if (tag) { tag.innerText = 'Modo Activo: Rob'; tag.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200'; }
-        if (sub) sub.innerText = 'Tus votos marcan la preferencia de Rob. Puedes ver lo que Ana va votando en tiempo real en cada tarjeta.';
+        if (sub) sub.innerText = 'Tienes 2,500 nombres hispanos nuevos por clasificar. ¡Usa el modo Swipe o las tarjetas para calificarlos!';
         if (toggleLabel) toggleLabel.innerText = 'Cambiar a Ana';
       } else if (isAna) {
         if (banner) banner.className = 'bg-gradient-to-r from-pink-50 via-rose-50/40 to-amber-50 rounded-3xl p-4 sm:p-5 border border-pink-200 shadow-2xs mb-6';
         if (avatarPill) { avatarPill.innerText = '👩'; avatarPill.className = 'w-12 h-12 rounded-2xl bg-pink-600 text-white flex items-center justify-center text-2xl shadow-sm shrink-0'; }
         if (title) title.innerText = 'Panel de Preferencias de Ana';
         if (tag) { tag.innerText = 'Modo Activo: Ana'; tag.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-800 border border-pink-200'; }
-        if (sub) sub.innerText = 'Tus votos marcan la preferencia de Ana. Si te gusta un nombre que a Rob también le gusta, ¡harán un Super Match!';
+        if (sub) sub.innerText = '¡Hola Ana! Puedes calificar libremente todos los nombres en modo Swipe. Cuando coincidas con Rob, se creará un Super Match.';
         if (toggleLabel) toggleLabel.innerText = 'Cambiar a Rob';
       } else {
         if (banner) banner.className = 'bg-gradient-to-r from-pink-50 via-purple-50/40 to-amber-50 rounded-3xl p-4 sm:p-5 border border-purple-200 shadow-2xs mb-6';
@@ -1168,7 +1191,7 @@ html_template = '''<!DOCTYPE html>
 
     // Match Calculation Helper
     function getMatchInfo(item) {
-      const rob = item.rob_status || item.status || 'unrated';
+      const rob = item.rob_status || 'unrated';
       const ana = item.ana_status || 'unrated';
 
       const robFav = rob === 'favorites';
@@ -1216,14 +1239,13 @@ html_template = '''<!DOCTYPE html>
 
     // Get User Status Helper
     function getUserStatus(item, user = currentUser) {
-      if (user === 'rob') return item.rob_status || item.status || 'unrated';
+      if (user === 'rob') return item.rob_status || 'unrated';
       if (user === 'ana') return item.ana_status || 'unrated';
-      // For 'both', returns consensus or highest priority
       if (item.rob_status === 'favorites' && item.ana_status === 'favorites') return 'favorites';
       if (item.rob_status === 'favorites' || item.ana_status === 'favorites') return 'favorites';
       if (item.rob_status === 'possible' || item.ana_status === 'possible') return 'possible';
       if (item.rob_status === 'similar_excluded' || item.ana_status === 'similar_excluded') return 'similar_excluded';
-      return item.status || 'unrated';
+      return item.rob_status || 'unrated';
     }
 
     // Set Person Vote (1-Tap Fast Action)
@@ -1263,15 +1285,6 @@ html_template = '''<!DOCTYPE html>
 
       // Re-render
       renderStats();
-      if (currentFilterStatus !== 'all' || currentMatchFilter !== 'all') {
-        applyFilters();
-      } else {
-        renderCardItemDOM(item);
-      }
-    }
-
-    function renderCardItemDOM(item) {
-      // Re-render single card or fall back to applyFilters
       applyFilters();
     }
 
@@ -1281,7 +1294,7 @@ html_template = '''<!DOCTYPE html>
         return;
       }
       allNames.forEach(x => {
-        x.ana_status = x.rob_status || x.status || 'unrated';
+        x.ana_status = x.rob_status || 'unrated';
       });
       localStorage.setItem('chiquitina_names_cache', JSON.stringify(allNames));
       if (isServerMode) {
@@ -1311,7 +1324,7 @@ html_template = '''<!DOCTYPE html>
       } else if (status === 'excluded') {
         return `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold badge-exc">❌ Excluido</span>`;
       } else {
-        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium badge-unrated">⏳ Pendiente</span>`;
+        return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold badge-unrated animate-pulse">⏳ Por clasificar</span>`;
       }
     }
 
@@ -1335,11 +1348,11 @@ html_template = '''<!DOCTYPE html>
       }
 
       // Stats for Rob
-      const robFavs = scopedNames.filter(x => (x.rob_status || x.status) === 'favorites').length;
-      const robPoss = scopedNames.filter(x => (x.rob_status || x.status) === 'possible').length;
-      const robSims = scopedNames.filter(x => (x.rob_status || x.status) === 'similar_excluded').length;
-      const robExcl = scopedNames.filter(x => (x.rob_status || x.status) === 'excluded').length;
-      const robUnrated = scopedNames.filter(x => !(x.rob_status || x.status) || (x.rob_status || x.status) === 'unrated').length;
+      const robFavs = scopedNames.filter(x => x.rob_status === 'favorites').length;
+      const robPoss = scopedNames.filter(x => x.rob_status === 'possible').length;
+      const robSims = scopedNames.filter(x => x.rob_status === 'similar_excluded').length;
+      const robExcl = scopedNames.filter(x => x.rob_status === 'excluded').length;
+      const robUnrated = scopedNames.filter(x => !x.rob_status || x.rob_status === 'unrated').length;
 
       // Stats for Ana
       const anaFavs = scopedNames.filter(x => x.ana_status === 'favorites').length;
@@ -1349,9 +1362,9 @@ html_template = '''<!DOCTYPE html>
       const anaUnrated = scopedNames.filter(x => !x.ana_status || x.ana_status === 'unrated').length;
 
       // Super Matches and Mutual Positive Matches
-      const superMatches = scopedNames.filter(x => (x.rob_status || x.status) === 'favorites' && x.ana_status === 'favorites').length;
+      const superMatches = scopedNames.filter(x => x.rob_status === 'favorites' && x.ana_status === 'favorites').length;
       const allMatches = scopedNames.filter(x => {
-        const rPos = (x.rob_status || x.status) === 'favorites' || (x.rob_status || x.status) === 'possible';
+        const rPos = x.rob_status === 'favorites' || x.rob_status === 'possible';
         const aPos = x.ana_status === 'favorites' || x.ana_status === 'possible';
         return rPos && aPos;
       }).length;
@@ -1380,38 +1393,20 @@ html_template = '''<!DOCTYPE html>
       }
 
       document.getElementById('metricTotal').innerText = scopedNames.length.toLocaleString();
+      document.getElementById('metricUnrated').innerText = curUnrated.toLocaleString();
       document.getElementById('metricFavorites').innerText = curFavs.toLocaleString();
       document.getElementById('metricPossible').innerText = curPoss.toLocaleString();
-      document.getElementById('metricSimilar').innerText = curSims.toLocaleString();
       document.getElementById('metricExcluded').innerText = curExcl.toLocaleString();
-
-      // Card labels
-      const lFav = document.getElementById('cardLabelFavorites');
-      const lPos = document.getElementById('cardLabelPossible');
-      const lSim = document.getElementById('cardLabelSimilar');
-      const lExc = document.getElementById('cardLabelExcluded');
-
-      if (currentUser === 'both') {
-        if (lFav) lFav.innerText = '💖 Super Matches';
-        if (lPos) lPos.innerText = '💚 Coincidencias';
-        if (lSim) lSim.innerText = '⚠️ Con Reparos';
-        if (lExc) lExc.innerText = '❌ Descartados';
-      } else {
-        if (lFav) lFav.innerText = `⭐ Fav (${userName})`;
-        if (lPos) lPos.innerText = `👍 Pos (${userName})`;
-        if (lSim) lSim.innerText = `⚠️ Duda (${userName})`;
-        if (lExc) lExc.innerText = `❌ Excl (${userName})`;
-      }
 
       // Tab Counts
       document.getElementById('tabCountAll').innerText = `(${scopedNames.length})`;
+      document.getElementById('tabCountUnrated').innerText = `(${curUnrated})`;
       document.getElementById('tabCountSuperMatches').innerText = `(${superMatches})`;
       document.getElementById('tabCountMatches').innerText = `(${allMatches})`;
       document.getElementById('tabCountFavorites').innerText = `(${curFavs})`;
       document.getElementById('tabCountPossible').innerText = `(${curPoss})`;
       document.getElementById('tabCountSimilar').innerText = `(${curSims})`;
       document.getElementById('tabCountExcluded').innerText = `(${curExcl})`;
-      document.getElementById('tabCountUnrated').innerText = `(${curUnrated})`;
 
       // Version badges
       const pdfCount = allNames.filter(x => x.source && x.source.includes('PDF')).length;
@@ -1453,13 +1448,13 @@ html_template = '''<!DOCTYPE html>
           tag.innerText = 'Nuevos Nombres Añadidos (+2,500)';
           tag.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200';
         }
-        if (desc) desc.innerText = 'Mostrando los nuevos nombres femeninos de origen hispano y latino añadidos con significado, santoral y compuestos.';
+        if (desc) desc.innerText = 'Mostrando los 2,500 nuevos nombres femeninos de origen hispano y latino pendientes de clasificar por ustedes.';
       } else {
         if (tag) {
           tag.innerText = 'Todo el Catálogo (3,672)';
           tag.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200';
         }
-        if (desc) desc.innerText = 'Visualizando todo el catálogo consolidado: 1,172 nombres del PDF original + 2,500 nuevos hispanos.';
+        if (desc) desc.innerText = '1,172 nombres del PDF v1.0 original ya clasificados + 2,500 nuevos nombres hispanos y latinos por descubrir.';
       }
 
       renderStats();
@@ -1486,17 +1481,19 @@ html_template = '''<!DOCTYPE html>
       currentFilterStatus = status;
       currentPage = 1;
 
-      const tabs = ['all', 'super_matches', 'matches', 'favorites', 'possible', 'similar_excluded', 'excluded', 'unrated'];
+      const tabs = ['all', 'unrated', 'super_matches', 'matches', 'favorites', 'possible', 'similar_excluded', 'excluded'];
       tabs.forEach(st => {
         const btn = document.getElementById(`tab_${st}`);
         if (!btn) return;
         if (st === status) {
-          if (st === 'super_matches') {
+          if (st === 'unrated') {
+            btn.className = 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 text-white shadow-sm transition shrink-0';
+          } else if (st === 'super_matches') {
             btn.className = 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-pink-600 text-white shadow-sm transition shrink-0';
           } else if (st === 'matches') {
             btn.className = 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 text-white shadow-sm transition shrink-0';
           } else if (st === 'favorites') {
-            btn.className = 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-500 text-white shadow-sm transition shrink-0';
+            btn.className = 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-rose-500 text-white shadow-sm transition shrink-0';
           } else if (st === 'possible') {
             btn.className = 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-sky-600 text-white shadow-sm transition shrink-0';
           } else if (st === 'similar_excluded') {
@@ -1505,7 +1502,9 @@ html_template = '''<!DOCTYPE html>
             btn.className = 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold bg-neutral-900 text-white transition shrink-0';
           }
         } else {
-          if (st === 'super_matches') {
+          if (st === 'unrated') {
+            btn.className = 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 transition shrink-0';
+          } else if (st === 'super_matches') {
             btn.className = 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-pink-50 text-pink-700 border border-pink-200 hover:bg-pink-100 transition shrink-0';
           } else if (st === 'matches') {
             btn.className = 'px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition shrink-0';
@@ -1607,7 +1606,7 @@ html_template = '''<!DOCTYPE html>
         if (currentVersionFilter === 'pdf' && (!item.source || !item.source.includes('PDF'))) return false;
         if (currentVersionFilter === 'new' && item.source && item.source.includes('PDF')) return false;
 
-        const robSt = item.rob_status || item.status || 'unrated';
+        const robSt = item.rob_status || 'unrated';
         const anaSt = item.ana_status || 'unrated';
         const userSt = getUserStatus(item, currentUser);
 
@@ -1680,7 +1679,7 @@ html_template = '''<!DOCTYPE html>
         if (currentSort === 'name_desc') return b.name.localeCompare(a.name, 'es');
         if (currentSort === 'origin_asc') return (a.origin || '').localeCompare(b.origin || '', 'es');
         if (currentSort === 'status_priority') {
-          const rank = { favorites: 1, possible: 2, similar_excluded: 3, excluded: 4, unrated: 5 };
+          const rank = { favorites: 1, possible: 2, unrated: 3, similar_excluded: 4, excluded: 5 };
           const uA = getUserStatus(a, currentUser);
           const uB = getUserStatus(b, currentUser);
           return (rank[uA] || 9) - (rank[uB] || 9);
@@ -1740,8 +1739,8 @@ html_template = '''<!DOCTYPE html>
       // Render Grid
       grid.innerHTML = pageItems.map(item => {
         const color = getOriginColor(item.origin);
-        const myVote = activePerson === 'rob' ? (item.rob_status || item.status || 'unrated') : (item.ana_status || 'unrated');
-        const partnerVote = partnerPerson === 'rob' ? (item.rob_status || item.status || 'unrated') : (item.ana_status || 'unrated');
+        const myVote = activePerson === 'rob' ? (item.rob_status || 'unrated') : (item.ana_status || 'unrated');
+        const partnerVote = partnerPerson === 'rob' ? (item.rob_status || 'unrated') : (item.ana_status || 'unrated');
         
         const isFav = myVote === 'favorites';
         const isPos = myVote === 'possible';
@@ -1883,7 +1882,7 @@ html_template = '''<!DOCTYPE html>
       tbody.innerHTML = pageItems.map(item => {
         const color = getOriginColor(item.origin);
         const match = getMatchInfo(item);
-        const robSt = item.rob_status || item.status || 'unrated';
+        const robSt = item.rob_status || 'unrated';
         const anaSt = item.ana_status || 'unrated';
 
         return `
@@ -2011,7 +2010,7 @@ html_template = '''<!DOCTYPE html>
       if (saintEl) saintEl.value = item.saint_day || '';
 
       // Rob radios
-      const rSt = item.rob_status || item.status || 'possible';
+      const rSt = item.rob_status || 'possible';
       if (rSt === 'favorites') document.getElementById('editRobFav').checked = true;
       else if (rSt === 'possible') document.getElementById('editRobPos').checked = true;
       else if (rSt === 'similar_excluded') document.getElementById('editRobSim').checked = true;
@@ -2024,7 +2023,6 @@ html_template = '''<!DOCTYPE html>
       else if (aSt === 'similar_excluded') document.getElementById('editAnaSim').checked = true;
       else if (aSt === 'excluded') document.getElementById('editAnaExc').checked = true;
       else {
-        // clear or default
         document.getElementById('editAnaPos').checked = true;
       }
 
@@ -2084,9 +2082,10 @@ html_template = '''<!DOCTYPE html>
       showToast(`🗑️ "${item.name}" ha sido eliminado`);
     }
 
-    // Swipe Discovery Mode for Rob & Ana
+    // Swipe Discovery Mode with 2,500 new unrated names by default
     function openSwipeModal() {
       swipeUser = currentUser === 'both' ? 'rob' : currentUser;
+      swipeDeckFilter = 'new_unrated'; // ALWAYS default to the 2,500 new unrated names!
       setSwipeUser(swipeUser);
       document.getElementById('swipeModal').classList.remove('hidden');
     }
@@ -2100,34 +2099,47 @@ html_template = '''<!DOCTYPE html>
       swipeUser = user;
       const btnRob = document.getElementById('swipeUser_rob');
       const btnAna = document.getElementById('swipeUser_ana');
-      if (btnRob) btnRob.className = `px-3 py-1 rounded-xl text-xs font-bold transition ${user === 'rob' ? 'bg-blue-600 text-white shadow-xs' : 'text-white/70 hover:text-white'}`;
-      if (btnAna) btnAna.className = `px-3 py-1 rounded-xl text-xs font-bold transition ${user === 'ana' ? 'bg-pink-600 text-white shadow-xs' : 'text-white/70 hover:text-white'}`;
+      if (btnRob) btnRob.className = `px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${user === 'rob' ? 'bg-blue-600 text-white shadow-xs' : 'text-white/70 hover:text-white'}`;
+      if (btnAna) btnAna.className = `px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${user === 'ana' ? 'bg-pink-600 text-white shadow-xs' : 'text-white/70 hover:text-white'}`;
       setSwipeFilter(swipeDeckFilter);
     }
 
     function setSwipeFilter(filterType) {
       swipeDeckFilter = filterType;
 
-      ['unrated', 'latin500', 'possible', 'all'].forEach(f => {
+      const filters = ['new_unrated', 'all_unrated', 'possible', 'all'];
+      filters.forEach(f => {
         const btn = document.getElementById(`swipeFilter_${f}`);
         if (!btn) return;
         if (f === filterType) {
-          btn.className = 'px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500 text-white shadow-xs transition';
+          btn.className = 'px-3 py-1 rounded-full text-xs font-bold bg-rose-500 text-white shadow-xs transition';
         } else {
-          btn.className = 'px-2.5 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition';
+          btn.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-white/80 hover:bg-white/25 transition';
         }
       });
 
-      if (filterType === 'unrated') {
+      const isRob = swipeUser === 'rob';
+
+      if (filterType === 'new_unrated') {
+        // Show all new additions (Latin 500 + 2000) that are unrated for active user
         swipeDeck = allNames.filter(x => {
-          const st = swipeUser === 'rob' ? (x.rob_status || x.status) : x.ana_status;
+          const isNew = !x.source || !x.source.includes('PDF');
+          const st = isRob ? (x.rob_status || 'unrated') : (x.ana_status || 'unrated');
+          return isNew && (!st || st === 'unrated');
+        });
+      } else if (filterType === 'all_unrated') {
+        // Show everything unrated for active user
+        swipeDeck = allNames.filter(x => {
+          const st = isRob ? (x.rob_status || 'unrated') : (x.ana_status || 'unrated');
           return !st || st === 'unrated';
         });
-      } else if (filterType === 'latin500') {
-        swipeDeck = allNames.filter(x => x.is_new || x.source?.includes('500') || x.source?.includes('2000'));
       } else if (filterType === 'possible') {
-        swipeDeck = allNames.filter(x => (x.rob_status || x.status) === 'possible');
+        swipeDeck = allNames.filter(x => {
+          const st = isRob ? (x.rob_status || 'unrated') : (x.ana_status || 'unrated');
+          return st === 'possible';
+        });
       } else {
+        // Entire catalog
         swipeDeck = [...allNames];
       }
 
@@ -2144,9 +2156,9 @@ html_template = '''<!DOCTYPE html>
           <div class="py-12 flex flex-col items-center">
             <span class="text-5xl mb-3">🎉</span>
             <h3 class="text-2xl font-bold font-display text-neutral-800">¡Has completado esta ronda!</h3>
-            <p class="text-sm text-neutral-500 mt-2 max-w-xs">No quedan más nombres en este filtro para ${swipeUser === 'rob' ? 'Rob' : 'Ana'}.</p>
+            <p class="text-sm text-neutral-500 mt-2 max-w-xs">No quedan más nombres pendientes en este filtro para ${swipeUser === 'rob' ? 'Rob' : 'Ana'}.</p>
             <button onclick="setSwipeFilter('all')" class="mt-6 px-5 py-2.5 bg-rose-500 text-white rounded-xl text-xs font-bold hover:bg-rose-600 transition shadow-sm">
-              Explorar Todo el Catálogo
+              Explorar Todo el Catálogo (3,672)
             </button>
           </div>
         `;
@@ -2155,11 +2167,11 @@ html_template = '''<!DOCTYPE html>
       }
 
       const item = swipeDeck[swipeIndex];
-      progress.innerText = `${swipeDeck.length - swipeIndex} restantes`;
+      progress.innerText = `${(swipeDeck.length - swipeIndex).toLocaleString()} restantes`;
 
       document.getElementById('swipeLetter').innerText = item.name.charAt(0).toUpperCase();
       document.getElementById('swipeOrigin').innerText = item.origin || 'Latino';
-      document.getElementById('swipeSource').innerText = item.is_compound ? 'Compuesto' : (item.source?.includes('PDF') ? 'v1.0 PDF' : 'Nuevo Hispano');
+      document.getElementById('swipeSource').innerText = item.is_compound ? '🏷️ Compuesto' : (item.source?.includes('PDF') ? '📜 v1.0 PDF' : '✨ Nuevo Hispano');
       document.getElementById('swipeName').innerText = item.name;
       document.getElementById('swipeMeaning').innerText = `"${item.meaning || 'Sin significado registrado'}"`;
 
@@ -2171,9 +2183,17 @@ html_template = '''<!DOCTYPE html>
         saintEl.classList.add('hidden');
       }
 
+      const simEl = document.getElementById('swipeSimilarity');
+      if (item.similar_to) {
+        simEl.innerText = `⚠️ ${item.similar_to}`;
+        simEl.classList.remove('hidden');
+      } else {
+        simEl.classList.add('hidden');
+      }
+
       // Partner's vote tag in Swipe
       const partner = swipeUser === 'rob' ? 'ana' : 'rob';
-      const partnerVote = partner === 'rob' ? (item.rob_status || item.status || 'unrated') : (item.ana_status || 'unrated');
+      const partnerVote = partner === 'rob' ? (item.rob_status || 'unrated') : (item.ana_status || 'unrated');
       const partnerLabels = { favorites: '⭐ Favorito', possible: '👍 Posible', similar_excluded: '⚠️ En Duda', excluded: '❌ Excluido', unrated: '⏳ Aún sin calificar' };
       const partnerTag = document.getElementById('swipePartnerVoteTag');
       if (partnerTag) {
@@ -2185,8 +2205,8 @@ html_template = '''<!DOCTYPE html>
         `;
       }
 
-      const myCurrent = swipeUser === 'rob' ? (item.rob_status || item.status || 'unrated') : (item.ana_status || 'unrated');
-      const statusMap = { favorites: '⭐ Favorito', possible: '👍 Posible', similar_excluded: '⚠️ En Duda', excluded: '❌ Excluido', unrated: '⏳ Pendiente' };
+      const myCurrent = swipeUser === 'rob' ? (item.rob_status || 'unrated') : (item.ana_status || 'unrated');
+      const statusMap = { favorites: '⭐ Favorito', possible: '👍 Posible', similar_excluded: '⚠️ En Duda', excluded: '❌ Excluido', unrated: '⏳ Por clasificar' };
       document.getElementById('swipeCurrentStatus').innerText = statusMap[myCurrent] || myCurrent;
     }
 
@@ -2195,23 +2215,62 @@ html_template = '''<!DOCTYPE html>
       const currentItem = swipeDeck[swipeIndex];
 
       const card = document.getElementById('swipeCard');
-      if (actionStatus === 'favorites') {
-        card.classList.add('translate-x-12', 'rotate-6', 'opacity-0');
-      } else if (actionStatus === 'excluded') {
-        card.classList.add('-translate-x-12', '-rotate-6', 'opacity-0');
-      } else if (actionStatus === 'possible') {
-        card.classList.add('-translate-y-8', 'opacity-0');
-      } else {
-        card.classList.add('translate-y-8', 'opacity-0');
+      if (card) {
+        if (actionStatus === 'favorites') {
+          card.classList.add('translate-x-16', 'rotate-6', 'opacity-0');
+        } else if (actionStatus === 'excluded') {
+          card.classList.add('-translate-x-16', '-rotate-6', 'opacity-0');
+        } else if (actionStatus === 'possible') {
+          card.classList.add('-translate-y-12', 'opacity-0');
+        } else {
+          card.classList.add('translate-y-12', 'opacity-0');
+        }
       }
 
       await setPersonVote(currentItem.id, actionStatus, swipeUser);
 
       setTimeout(() => {
-        card.classList.remove('translate-x-12', '-translate-x-12', 'translate-y-8', '-translate-y-8', 'rotate-6', '-rotate-6', 'opacity-0');
+        if (card) {
+          card.classList.remove('translate-x-16', '-translate-x-16', 'translate-y-12', '-translate-y-12', 'rotate-6', '-rotate-6', 'opacity-0');
+        }
         swipeIndex++;
         renderSwipeCard();
       }, 160);
+    }
+
+    // Touch Swipe Gestures
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+
+    function setupSwipeGestures() {
+      const card = document.getElementById('swipeCard');
+      if (!card) return;
+
+      card.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+      }, { passive: true });
+
+      card.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        touchEndY = e.changedTouches[0].screenY;
+        const dx = touchEndX - touchStartX;
+        const dy = touchEndY - touchStartY;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+
+        if (Math.max(absX, absY) < 45) return; // minimal threshold
+
+        if (absX > absY) {
+          if (dx > 0) handleSwipeAction('favorites'); // swipe right -> Fav
+          else handleSwipeAction('excluded'); // swipe left -> Exclude
+        } else {
+          if (dy < 0) handleSwipeAction('possible'); // swipe up -> Possible
+          else handleSwipeAction('similar_excluded'); // swipe down -> Duda
+        }
+      }, { passive: true });
     }
 
     // Keyboard navigation for Swipe Mode
@@ -2244,7 +2303,7 @@ html_template = '''<!DOCTYPE html>
           `"${(x.origin || '').replace(/"/g, '""')}"`,
           `"${(x.saint_day || '').replace(/"/g, '""')}"`,
           `"${(x.meaning || '').replace(/"/g, '""')}"`,
-          `"${x.rob_status || x.status || ''}"`,
+          `"${x.rob_status || ''}"`,
           `"${x.ana_status || ''}"`,
           `"${m.type}"`,
           `"${x.is_compound ? 'Compuesto' : 'Simple'}"`,
@@ -2354,4 +2413,4 @@ html_template = '''<!DOCTYPE html>
 with open('index.html', 'w', encoding='utf-8') as f:
     f.write(html_template)
 
-print("Successfully written index.html with two-person preference support and 3,672 names.")
+print("Successfully written index.html with 2,500 unrated names and Swipe Mode fix.")
