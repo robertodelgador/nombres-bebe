@@ -187,8 +187,13 @@ html_template = '''<!DOCTYPE html>
           </button>
         </div>
 
-        <!-- Header Actions -->
-        <div class="flex items-center space-x-2 sm:space-x-3">
+          <!-- Cloud Sync Button -->
+          <button onclick="openGitHubSyncModal()" id="headerGitHubSyncBtn" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-white border border-neutral-200 text-neutral-700 shadow-2xs hover:bg-neutral-50 hover:border-neutral-300 transition active:scale-95" title="Sincronizar en la Nube con GitHub">
+            <span id="githubSyncIcon" class="text-base">☁️</span>
+            <span class="hidden sm:inline" id="githubSyncLabel">GitHub</span>
+            <span id="githubSyncStatusDot" class="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="Sincronizado"></span>
+          </button>
+
           <button onclick="openSwipeModal()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 text-white shadow-md shadow-rose-200/60 hover:shadow-lg hover:scale-105 transition active:scale-95 animate-pulse">
             <span class="text-base">✨</span>
             <span class="hidden sm:inline">Modo Swipe (+2,500)</span>
@@ -207,6 +212,12 @@ html_template = '''<!DOCTYPE html>
               <span class="text-[10px]">▼</span>
             </button>
             <div class="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-neutral-100 py-2 hidden group-hover:block z-50">
+              <button onclick="openGitHubSyncModal()" class="w-full text-left px-4 py-2 text-xs text-blue-700 font-bold hover:bg-blue-50 flex items-center gap-2">
+                <span>☁️</span> Sincronizar en GitHub (Nube)
+              </button>
+              <button onclick="shareVotesViaWhatsApp()" class="w-full text-left px-4 py-2 text-xs text-emerald-700 font-bold hover:bg-emerald-50 flex items-center gap-2">
+                <span>💬</span> Pasar Votos a Pareja por WhatsApp
+              </button>
               <button onclick="openSwipeModal()" class="w-full text-left px-4 py-2 text-xs text-rose-700 font-bold hover:bg-rose-50 flex items-center gap-2">
                 <span>✨</span> Abrir Modo Swipe (Clasificar Nuevos)
               </button>
@@ -264,6 +275,12 @@ html_template = '''<!DOCTYPE html>
           <span>💖 Matches</span>
         </button>
       </div>
+
+      <!-- Mobile Cloud Sync Button -->
+      <button onclick="openGitHubSyncModal()" class="p-2 rounded-xl bg-white border border-neutral-200 text-neutral-700 shadow-2xs text-xs font-bold flex items-center gap-1 shrink-0 active:scale-95" title="Sincronizar en la Nube">
+        <span>☁️</span>
+        <span id="mobSyncStatusDot" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+      </button>
     </div>
   </div>
 
@@ -859,8 +876,12 @@ html_template = '''<!DOCTYPE html>
       <div class="w-full flex items-center justify-between text-white/90 mb-2 px-1">
         <div class="flex items-center gap-2">
           <span class="text-xl">✨</span>
-          <span class="font-bold text-sm">Modo Swipe para Pareja</span>
-          <span id="swipeDeckProgress" class="text-xs font-bold bg-amber-400 text-amber-950 px-2.5 py-0.5 rounded-full shadow-xs">2,500 restantes</span>
+          <span class="font-bold text-sm">Modo Swipe</span>
+          <span id="swipeDeckProgress" class="text-xs font-bold bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full shadow-xs">2,500</span>
+          <button onclick="openGitHubSyncModal()" class="text-xs bg-white/10 hover:bg-white/20 text-white/90 px-2 py-0.5 rounded-lg flex items-center gap-1 border border-white/15 transition active:scale-95" title="Sincronización en la nube">
+            <span>☁️</span>
+            <span id="swipeSyncStatusText" class="text-[10px]">Al día</span>
+          </button>
         </div>
         <button onclick="closeSwipeModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm font-bold text-white transition">✕</button>
       </div>
@@ -967,6 +988,149 @@ html_template = '''<!DOCTYPE html>
       </div>
 
     </div>
+  <!-- GitHub Cloud Sync & Partner Pairing Modal -->
+  <div id="githubSyncModal" class="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-neutral-100 max-h-[90vh] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-neutral-100 pb-3 mb-4">
+        <div class="flex items-center gap-2.5">
+          <span class="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center text-xl shadow-2xs">☁️</span>
+          <div>
+            <h3 class="text-base sm:text-lg font-bold font-display text-neutral-900 leading-tight">Sincronización en GitHub & Pareja</h3>
+            <p class="text-[11px] text-neutral-500">Comparte tu progreso con Rob o Ana en tiempo real</p>
+          </div>
+        </div>
+        <button onclick="closeGitHubSyncModal()" class="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-500 hover:text-neutral-800 flex items-center justify-center font-bold text-sm transition">✕</button>
+      </div>
+
+      <!-- Cloud Status Box -->
+      <div class="bg-gradient-to-br from-blue-50/70 via-indigo-50/50 to-purple-50/70 rounded-2xl p-4 border border-blue-100 mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-neutral-700 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Repositorio GitHub:
+          </span>
+          <a href="https://github.com/robertodelgador/nombres-bebe" target="_blank" class="text-xs font-mono font-semibold text-blue-600 hover:underline flex items-center gap-1">
+            <span>robertodelgador/nombres-bebe</span> ↗
+          </a>
+        </div>
+        <div id="githubSyncDetailBox" class="text-xs text-neutral-600 space-y-1.5 bg-white/70 rounded-xl p-3 border border-white">
+          <div class="flex justify-between items-center">
+            <span>Última sincronización con GitHub:</span>
+            <b id="githubLastSyncTimeText" class="font-mono text-neutral-800">Recién iniciada</b>
+          </div>
+          <div class="flex justify-between items-center">
+            <span>Votos registrados de 👨 Rob:</span>
+            <b id="syncRobCountText" class="text-blue-700 font-mono">23</b>
+          </div>
+          <div class="flex justify-between items-center">
+            <span>Votos registrados de 👩 Ana:</span>
+            <b id="syncAnaCountText" class="text-pink-700 font-mono">0</b>
+          </div>
+          <div class="flex justify-between items-center pt-1 border-t border-neutral-100 font-bold text-pink-700">
+            <span>💖 Super Matches confirmados:</span>
+            <b id="syncSuperMatchCountText" class="font-mono">0</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main GitHub Action Buttons -->
+      <div class="grid grid-cols-2 gap-2 mb-5">
+        <button onclick="saveAndPushToGitHub()" class="flex flex-col items-center justify-center p-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md shadow-blue-200 transition active:scale-95 group">
+          <span class="text-xl group-hover:-translate-y-0.5 transition">⬆️</span>
+          <span class="text-xs font-bold mt-1">Guardar en GitHub</span>
+          <span class="text-[10px] text-blue-100">Sube tus votos al repo</span>
+        </button>
+
+        <button onclick="pullLatestFromGitHub(true)" class="flex flex-col items-center justify-center p-3 rounded-2xl bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-800 shadow-2xs transition active:scale-95 group">
+          <span class="text-xl group-hover:rotate-45 transition">⬇️</span>
+          <span class="text-xs font-bold mt-1">Descargar de GitHub</span>
+          <span class="text-[10px] text-neutral-500">Trae los votos de tu pareja</span>
+        </button>
+      </div>
+
+      <!-- Quick WhatsApp / Direct Share Section (Zero Token Required) -->
+      <div class="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl mb-4">
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="text-base">📲</span>
+          <h4 class="text-xs font-bold text-emerald-950 uppercase tracking-wider">Pasar Votos Directo a la Pareja (Sin Token)</h4>
+        </div>
+        <p class="text-[11px] text-emerald-800 mb-3 leading-relaxed">
+          Si tu pareja está usando su celular y no tiene token de GitHub, puede tocar aquí para mandar sus votos por WhatsApp o enlace directo. Al abrirlo, se guardarán en GitHub automáticamente.
+        </p>
+        <div class="flex gap-2">
+          <button onclick="shareVotesViaWhatsApp()" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 shadow-xs transition active:scale-95">
+            <span>💬</span>
+            <span>Enviar por WhatsApp</span>
+          </button>
+          <button onclick="copyShareSyncLink()" class="py-2 px-3 rounded-xl text-xs font-bold bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-100/50 flex items-center gap-1 shadow-2xs transition active:scale-95">
+            <span>📋</span>
+            <span>Copiar Enlace</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- GitHub Token Configuration Accordion -->
+      <details class="group bg-neutral-50 rounded-2xl border border-neutral-200 p-3 mb-4">
+        <summary class="flex items-center justify-between cursor-pointer text-xs font-bold text-neutral-700 select-none">
+          <span class="flex items-center gap-2">
+            <span>🔑</span>
+            <span>Configurar Token de GitHub (Opcional para subir directo)</span>
+          </span>
+          <span class="text-neutral-400 group-open:rotate-180 transition">▼</span>
+        </summary>
+        <div class="mt-3 pt-3 border-t border-neutral-200/80 space-y-2.5">
+          <p class="text-[11px] text-neutral-600 leading-relaxed">
+            Para que este navegador pueda escribir directamente en el archivo <code class="bg-neutral-200 px-1 py-0.5 rounded text-[10px]">votes.json</code> del repositorio, introduce un <b>Personal Access Token</b> de GitHub con permisos de escritura (<code class="bg-neutral-200 px-1 py-0.5 rounded text-[10px]">repo</code> o <code class="bg-neutral-200 px-1 py-0.5 rounded text-[10px]">contents:write</code>). Se guardará únicamente en este dispositivo.
+          </p>
+          <div class="flex gap-2">
+            <input type="password" id="githubTokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="flex-1 px-3 py-2 text-xs font-mono rounded-xl bg-white border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <button onclick="saveGitHubToken()" class="px-3.5 py-2 text-xs font-bold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition">
+              Guardar
+            </button>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-neutral-500 pt-1">
+            <a href="https://github.com/settings/tokens/new?scopes=repo&description=Nombres+Chiquitina" target="_blank" class="text-blue-600 hover:underline flex items-center gap-1">
+              <span>🔗 Crear token en GitHub (1 clic)</span>
+            </a>
+            <button onclick="clearGitHubToken()" id="clearTokenBtn" class="text-red-500 hover:underline hidden">
+              Borrar token guardado
+            </button>
+          </div>
+        </div>
+      </details>
+
+      <!-- Local Backup Buttons -->
+      <div class="flex items-center justify-between pt-2 border-t border-neutral-100 text-xs text-neutral-500">
+        <button onclick="exportToJSON()" class="hover:text-neutral-800 transition">
+          💾 Descargar backup .json
+        </button>
+        <button onclick="document.getElementById('importFileInput').click(); closeGitHubSyncModal();" class="hover:text-neutral-800 transition">
+          📂 Cargar backup .json
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Incoming Sync Prompt Modal -->
+  <div id="incomingSyncModal" class="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border border-neutral-100 text-center animate-in fade-in zoom-in-95 duration-150">
+      <span class="text-4xl block mb-2">🎉</span>
+      <h3 class="text-base font-bold text-neutral-900 mb-1">¡Votos Recibidos de tu Pareja!</h3>
+      <p id="incomingSyncMsg" class="text-xs text-neutral-600 mb-4 leading-relaxed">
+        Se detectaron votos compartidos. ¿Deseas incorporarlos a tu lista para actualizar los matches?
+      </p>
+      <div class="flex gap-2">
+        <button onclick="rejectIncomingSync()" class="flex-1 py-2 text-xs font-semibold text-neutral-600 hover:bg-neutral-100 rounded-xl transition">
+          Ignorar
+        </button>
+        <button onclick="acceptIncomingSync()" class="flex-1 py-2 text-xs font-bold bg-rose-500 text-white rounded-xl hover:bg-rose-600 shadow-md shadow-rose-200 transition">
+          Incorporar Votos
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Toast Notification -->
@@ -980,6 +1144,13 @@ html_template = '''<!DOCTYPE html>
     // Storage Keys
     const VOTES_STORAGE_KEY = 'chiquitina_user_votes_v2';
     const CUSTOM_NAMES_KEY = 'chiquitina_custom_names_v2';
+    const GITHUB_TOKEN_KEY = 'chiquitina_github_token';
+    const LAST_GITHUB_SYNC_KEY = 'chiquitina_last_github_sync';
+
+    // GitHub Cloud Repository Config
+    const GITHUB_REPO = 'robertodelgador/nombres-bebe';
+    const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/robertodelgador/nombres-bebe/main/votes.json';
+    const GITHUB_API_URL = 'https://api.github.com/repos/robertodelgador/nombres-bebe/contents/votes.json';
 
     // App State
     let allNames = [];
@@ -998,6 +1169,11 @@ html_template = '''<!DOCTYPE html>
     let currentPage = 1;
     const pageSize = 48;
 
+    // Cloud Sync State
+    let hasUnsavedCloudChanges = false;
+    let autoSyncTimer = null;
+    let pendingIncomingSync = null;
+
     // Swipe Mode State
     let swipeDeck = [];
     let swipeIndex = 0;
@@ -1005,6 +1181,429 @@ html_template = '''<!DOCTYPE html>
     let swipeDeckFilter = 'new_unrated';
     let swipeHistory = [];
     let sessionVoteCounts = { favorites: 0, possible: 0, similar_excluded: 0, excluded: 0 };
+
+    // UTF-8 safe base64 encoding/decoding helpers
+    function utf8ToBase64(str) {
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+    function base64ToUtf8(b64) {
+      return decodeURIComponent(escape(atob(b64.replace(/\\s/g, ''))));
+    }
+
+    // Cloud sync UI indicator dots
+    function updateCloudSyncDots(isSynced) {
+      const dot1 = document.getElementById('githubSyncStatusDot');
+      const dot2 = document.getElementById('mobSyncStatusDot');
+      const txt = document.getElementById('swipeSyncStatusText');
+      if (isSynced) {
+        if (dot1) dot1.className = 'w-2 h-2 rounded-full bg-emerald-500 inline-block';
+        if (dot2) dot2.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+        if (txt) txt.innerText = 'Al día';
+      } else {
+        if (dot1) dot1.className = 'w-2 h-2 rounded-full bg-amber-400 inline-block';
+        if (dot2) dot2.className = 'w-1.5 h-1.5 rounded-full bg-amber-400';
+        if (txt) txt.innerText = 'Pendiente';
+      }
+    }
+
+    // Modal controls for GitHub sync
+    function openGitHubSyncModal() {
+      updateGitHubSyncUI();
+      const tokenInput = document.getElementById('githubTokenInput');
+      const token = localStorage.getItem(GITHUB_TOKEN_KEY) || '';
+      if (tokenInput) tokenInput.value = token;
+      const clearBtn = document.getElementById('clearTokenBtn');
+      if (clearBtn) clearBtn.className = token ? 'text-red-500 hover:underline' : 'hidden';
+      document.getElementById('githubSyncModal')?.classList.remove('hidden');
+    }
+
+    function closeGitHubSyncModal() {
+      document.getElementById('githubSyncModal')?.classList.add('hidden');
+    }
+
+    function saveGitHubToken() {
+      const token = (document.getElementById('githubTokenInput')?.value || '').trim();
+      if (!token) {
+        alert("Por favor ingresa un token válido de GitHub.");
+        return;
+      }
+      localStorage.setItem(GITHUB_TOKEN_KEY, token);
+      showToast("🔑 Token de GitHub guardado en este dispositivo");
+      const clearBtn = document.getElementById('clearTokenBtn');
+      if (clearBtn) clearBtn.className = 'text-red-500 hover:underline';
+      saveAndPushToGitHub(false);
+    }
+
+    function clearGitHubToken() {
+      if (confirm("¿Deseas eliminar el token de GitHub guardado en este dispositivo?")) {
+        localStorage.removeItem(GITHUB_TOKEN_KEY);
+        const tokenInput = document.getElementById('githubTokenInput');
+        if (tokenInput) tokenInput.value = '';
+        const clearBtn = document.getElementById('clearTokenBtn');
+        if (clearBtn) clearBtn.className = 'hidden';
+        showToast("Token eliminado");
+      }
+    }
+
+    function updateGitHubSyncUI() {
+      const lastSync = localStorage.getItem(LAST_GITHUB_SYNC_KEY);
+      const timeEl = document.getElementById('githubLastSyncTimeText');
+      if (timeEl) {
+        if (lastSync) {
+          const d = new Date(lastSync);
+          timeEl.innerText = `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        } else {
+          timeEl.innerText = "Aún no sincronizado";
+        }
+      }
+
+      let votes = { rob: {}, ana: {} };
+      try {
+        votes = JSON.parse(localStorage.getItem(VOTES_STORAGE_KEY) || '{"rob":{},"ana":{}}');
+      } catch (e) {}
+
+      const robCount = Object.keys(votes.rob || {}).length;
+      const anaCount = Object.keys(votes.ana || {}).length;
+      const superMatches = allNames.filter(x => x.rob_status === 'favorites' && x.ana_status === 'favorites').length;
+
+      const robEl = document.getElementById('syncRobCountText');
+      const anaEl = document.getElementById('syncAnaCountText');
+      const superEl = document.getElementById('syncSuperMatchCountText');
+      if (robEl) robEl.innerText = `${robCount} nombres calificados`;
+      if (anaEl) anaEl.innerText = `${anaCount} nombres calificados`;
+      if (superEl) superEl.innerText = `${superMatches} nombres`;
+    }
+
+    // Fetch and merge remote votes from GitHub
+    async function fetchVotesFromGitHub(showToastNotice = false) {
+      try {
+        let res = await fetch(`${GITHUB_RAW_URL}?t=${Date.now()}`);
+        if (!res.ok) {
+          res = await fetch(GITHUB_API_URL, {
+            headers: { 'Accept': 'application/vnd.github.v3.raw' }
+          });
+        }
+
+        if (res.ok) {
+          const remoteData = await res.json();
+          const changesDetected = mergeRemoteVotes(remoteData);
+          localStorage.setItem(LAST_GITHUB_SYNC_KEY, new Date().toISOString());
+          hasUnsavedCloudChanges = false;
+          updateCloudSyncDots(true);
+          updateGitHubSyncUI();
+          if (showToastNotice) {
+            showToast("☁️ ¡Votos descargados y sincronizados desde GitHub!", "☁️");
+          } else if (changesDetected) {
+            showToast("☁️ Nuevos votos de tu pareja recibidos desde GitHub", "💖");
+          }
+          return true;
+        }
+      } catch (err) {
+        console.warn("Could not fetch votes from GitHub:", err);
+      }
+      return false;
+    }
+
+    // Merge remote votes non-destructively
+    function mergeRemoteVotes(remoteData) {
+      if (!remoteData) return false;
+      let localVotes = { rob: {}, ana: {} };
+      try {
+        localVotes = JSON.parse(localStorage.getItem(VOTES_STORAGE_KEY) || '{"rob":{},"ana":{}}');
+      } catch (e) {}
+      if (!localVotes.rob) localVotes.rob = {};
+      if (!localVotes.ana) localVotes.ana = {};
+
+      let hasNewData = false;
+
+      if (remoteData.rob) {
+        for (const [id, st] of Object.entries(remoteData.rob)) {
+          if (!localVotes.rob[id] || localVotes.rob[id] !== st) {
+            localVotes.rob[id] = st;
+            hasNewData = true;
+          }
+        }
+      }
+
+      if (remoteData.ana) {
+        for (const [id, st] of Object.entries(remoteData.ana)) {
+          if (!localVotes.ana[id] || localVotes.ana[id] !== st) {
+            localVotes.ana[id] = st;
+            hasNewData = true;
+          }
+        }
+      }
+
+      // Merge custom names
+      if (Array.isArray(remoteData.custom_names) && remoteData.custom_names.length > 0) {
+        let localCustom = [];
+        try {
+          localCustom = JSON.parse(localStorage.getItem(CUSTOM_NAMES_KEY) || '[]');
+        } catch (e) {}
+        for (const item of remoteData.custom_names) {
+          if (!localCustom.some(x => x.id === item.id)) {
+            localCustom.push(item);
+            hasNewData = true;
+          }
+        }
+        localStorage.setItem(CUSTOM_NAMES_KEY, JSON.stringify(localCustom));
+      }
+
+      if (hasNewData) {
+        localStorage.setItem(VOTES_STORAGE_KEY, JSON.stringify(localVotes));
+        applySavedVotes();
+        renderStats();
+        applyFilters();
+      }
+      return hasNewData;
+    }
+
+    // Push local votes to GitHub repository
+    async function saveAndPushToGitHub(silent = false) {
+      // If local server is running, push via server endpoint
+      if (isServerMode) {
+        if (!silent) showToast("🔄 Sincronizando con GitHub vía servidor local...", "☁️");
+        try {
+          const resp = await fetch('/api/sync-github', { method: 'POST' });
+          const resJson = await resp.json();
+          if (resJson.success) {
+            localStorage.setItem(LAST_GITHUB_SYNC_KEY, new Date().toISOString());
+            hasUnsavedCloudChanges = false;
+            updateCloudSyncDots(true);
+            updateGitHubSyncUI();
+            if (!silent) showToast("✅ " + resJson.message, "✅");
+            return true;
+          } else {
+            if (!silent) showToast("⚠️ " + (resJson.error || resJson.message), "⚠️");
+            return false;
+          }
+        } catch (e) {
+          console.warn("Server git push error:", e);
+        }
+      }
+
+      // Browser GitHub API push using Token
+      const token = localStorage.getItem(GITHUB_TOKEN_KEY);
+      if (!token) {
+        if (!silent) {
+          openGitHubSyncModal();
+          const det = document.querySelector('#githubSyncModal details');
+          if (det) det.open = true;
+          document.getElementById('githubTokenInput')?.focus();
+          showToast("Ingresa un Token de GitHub para guardar directamente", "🔑");
+        }
+        return false;
+      }
+
+      if (!silent) showToast("☁️ Guardando votos en GitHub...", "☁️");
+
+      try {
+        // 1. Fetch current file info for SHA and remote votes
+        let sha = null;
+        let remoteVotes = { rob: {}, ana: {}, custom_names: [] };
+
+        const getRes = await fetch(GITHUB_API_URL, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+
+        if (getRes.ok) {
+          const fileInfo = await getRes.json();
+          sha = fileInfo.sha;
+          if (fileInfo.content) {
+            try {
+              const decoded = base64ToUtf8(fileInfo.content);
+              remoteVotes = JSON.parse(decoded);
+            } catch (e) {
+              console.warn("Could not parse remote content:", e);
+            }
+          }
+        }
+
+        // 2. Prepare merged data
+        let localVotes = { rob: {}, ana: {} };
+        try {
+          localVotes = JSON.parse(localStorage.getItem(VOTES_STORAGE_KEY) || '{"rob":{},"ana":{}}');
+        } catch (e) {}
+
+        let localCustom = [];
+        try {
+          localCustom = JSON.parse(localStorage.getItem(CUSTOM_NAMES_KEY) || '[]');
+        } catch (e) {}
+
+        const mergedPayload = {
+          version: 2,
+          last_updated: new Date().toISOString(),
+          updated_by: currentUser,
+          rob: { ...(remoteVotes.rob || {}), ...(localVotes.rob || {}) },
+          ana: { ...(remoteVotes.ana || {}), ...(localVotes.ana || {}) },
+          custom_names: [
+            ...(remoteVotes.custom_names || []),
+            ...localCustom.filter(c => !(remoteVotes.custom_names || []).some(r => r.id === c.id))
+          ]
+        };
+
+        const jsonStr = JSON.stringify(mergedPayload, null, 2);
+        const encodedContent = utf8ToBase64(jsonStr);
+
+        const putBody = {
+          message: `Actualización de votos (${currentUser === 'rob' ? 'Rob' : (currentUser === 'ana' ? 'Ana' : 'Ambos')}) vía Chiquitina Web`,
+          content: encodedContent
+        };
+        if (sha) putBody.sha = sha;
+
+        const putRes = await fetch(GITHUB_API_URL, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/vnd.github.v3+json'
+          },
+          body: JSON.stringify(putBody)
+        });
+
+        if (putRes.ok) {
+          localStorage.setItem(LAST_GITHUB_SYNC_KEY, new Date().toISOString());
+          hasUnsavedCloudChanges = false;
+          updateCloudSyncDots(true);
+          updateGitHubSyncUI();
+          if (!silent) showToast("✅ ¡Votos guardados en GitHub con éxito!", "✅");
+          return true;
+        } else {
+          const errData = await putRes.json().catch(() => ({}));
+          console.error("GitHub API error:", errData);
+          if (!silent) showToast(`❌ Error GitHub: ${errData.message || 'Verifica tu token'}`, "❌");
+          return false;
+        }
+      } catch (err) {
+        console.error("Push to GitHub failed:", err);
+        if (!silent) showToast("❌ Error de conexión al guardar en GitHub", "❌");
+        return false;
+      }
+    }
+
+    // Pull Latest from GitHub
+    async function pullLatestFromGitHub(notify = true) {
+      await fetchVotesFromGitHub(notify);
+    }
+
+    // Auto sync debouncer
+    function scheduleGitHubAutoSync() {
+      if (autoSyncTimer) clearTimeout(autoSyncTimer);
+      autoSyncTimer = setTimeout(() => {
+        const token = localStorage.getItem(GITHUB_TOKEN_KEY);
+        if (token || isServerMode) {
+          saveAndPushToGitHub(true);
+        }
+      }, 4000);
+    }
+
+    // Direct WhatsApp and Share Link Generator
+    function getSyncPayloadForPartner() {
+      let votes = { rob: {}, ana: {} };
+      try {
+        votes = JSON.parse(localStorage.getItem(VOTES_STORAGE_KEY) || '{"rob":{},"ana":{}}');
+      } catch (e) {}
+
+      const userVotes = currentUser === 'ana' ? (votes.ana || {}) : (votes.rob || {});
+      const payload = {
+        u: currentUser === 'ana' ? 'ana' : 'rob',
+        v: userVotes,
+        t: Date.now()
+      };
+      return utf8ToBase64(JSON.stringify(payload));
+    }
+
+    function shareVotesViaWhatsApp() {
+      const b64 = getSyncPayloadForPartner();
+      const currentUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${currentUrl}#sync=${b64}`;
+      const partner = currentUser === 'ana' ? 'Rob' : 'Ana';
+
+      let votes = {};
+      try { votes = JSON.parse(localStorage.getItem(VOTES_STORAGE_KEY) || '{}'); } catch (e) {}
+      const count = Object.keys((currentUser === 'ana' ? votes.ana : votes.rob) || {}).length;
+
+      const text = `¡Hola ${partner}! 👶 Ya clasifiqué ${count} nombres para Chiquitina. Abre este enlace en tu celular para ver mis elecciones y nuestros Super Matches: ${shareUrl}`;
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+      showToast("💬 Abriendo WhatsApp para compartir...", "📲");
+    }
+
+    function copyShareSyncLink() {
+      const b64 = getSyncPayloadForPartner();
+      const currentUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${currentUrl}#sync=${b64}`;
+
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        showToast("📋 ¡Enlace copiado! Pégalo en WhatsApp o compárteselo a tu pareja", "📋");
+      }).catch(() => {
+        prompt("Copia este enlace de sincronización:", shareUrl);
+      });
+    }
+
+    // Incoming URL sync handlers
+    function checkIncomingSync() {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith('#sync=')) {
+        const b64 = hash.replace('#sync=', '');
+        try {
+          const jsonStr = base64ToUtf8(b64);
+          const payload = JSON.parse(jsonStr);
+          if (payload && payload.v) {
+            pendingIncomingSync = payload;
+            const sender = payload.u === 'ana' ? '👩 Ana' : '👨 Rob';
+            const count = Object.keys(payload.v).length;
+            const msgEl = document.getElementById('incomingSyncMsg');
+            if (msgEl) {
+              msgEl.innerText = `Se recibieron ${count} nombres calificados de ${sender}. ¿Deseas incorporarlos a tu lista para actualizar los matches y guardarlos en GitHub?`;
+            }
+            document.getElementById('incomingSyncModal')?.classList.remove('hidden');
+          }
+        } catch (e) {
+          console.error("Error reading incoming sync hash:", e);
+        }
+      }
+    }
+
+    function acceptIncomingSync() {
+      if (!pendingIncomingSync) return;
+      const sender = pendingIncomingSync.u;
+      const votes = pendingIncomingSync.v;
+
+      let localVotes = { rob: {}, ana: {} };
+      try {
+        localVotes = JSON.parse(localStorage.getItem(VOTES_STORAGE_KEY) || '{"rob":{},"ana":{}}');
+      } catch (e) {}
+      if (!localVotes.rob) localVotes.rob = {};
+      if (!localVotes.ana) localVotes.ana = {};
+
+      if (sender === 'ana') {
+        localVotes.ana = { ...(localVotes.ana || {}), ...votes };
+      } else {
+        localVotes.rob = { ...(localVotes.rob || {}), ...votes };
+      }
+
+      localStorage.setItem(VOTES_STORAGE_KEY, JSON.stringify(localVotes));
+      applySavedVotes();
+      renderStats();
+      applyFilters();
+
+      document.getElementById('incomingSyncModal')?.classList.add('hidden');
+      window.history.replaceState(null, null, window.location.pathname);
+      showToast(`🎉 ¡Votos de ${sender === 'ana' ? 'Ana' : 'Rob'} incorporados con éxito!`, "💖");
+
+      // Auto push to GitHub if token or server available
+      saveAndPushToGitHub(true);
+      pendingIncomingSync = null;
+    }
+
+    function rejectIncomingSync() {
+      document.getElementById('incomingSyncModal')?.classList.add('hidden');
+      window.history.replaceState(null, null, window.location.pathname);
+      pendingIncomingSync = null;
+    }
 
     // Color mapper for origins
     const originColors = {
@@ -1043,6 +1642,9 @@ html_template = '''<!DOCTYPE html>
       // 2. Overlay permanently stored user votes from localStorage (Lightning fast & lightweight)
       applySavedVotes();
 
+      // 3. Check for incoming sync via URL (#sync=...)
+      checkIncomingSync();
+
       buildAlphabetBar();
       await checkServerConnection();
       updateUserUI();
@@ -1051,6 +1653,16 @@ html_template = '''<!DOCTYPE html>
       applyFilters();
       setupKeyboardListeners();
       setupSwipeGestures();
+
+      // 4. Fetch latest shared votes from GitHub repository (keeps Rob & Ana in sync across sessions)
+      await fetchVotesFromGitHub(false);
+
+      // 5. Setup auto-sync when returning to tab
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          fetchVotesFromGitHub(false);
+        }
+      });
     });
 
     // Alphabet bar builder
@@ -1081,6 +1693,9 @@ html_template = '''<!DOCTYPE html>
           votes.ana[id] = status;
         }
         localStorage.setItem(VOTES_STORAGE_KEY, JSON.stringify(votes));
+        hasUnsavedCloudChanges = true;
+        updateCloudSyncDots(false);
+        scheduleGitHubAutoSync();
       } catch (err) {
         console.error("Failed to save vote locally:", err);
       }

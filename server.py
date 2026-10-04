@@ -40,12 +40,43 @@ def load_db():
         return []
 
 
+VOTES_FILE = os.path.join(BASE_DIR, 'votes.json')
+
+
+def update_votes_file_from_db(data):
+    try:
+        rob_votes = {}
+        ana_votes = {}
+        custom_names = []
+        for x in data:
+            if x.get('rob_status') and x.get('rob_status') != 'unrated':
+                rob_votes[x['id']] = x['rob_status']
+            if x.get('ana_status') and x.get('ana_status') != 'unrated':
+                ana_votes[x['id']] = x['ana_status']
+            if x.get('source') == 'User Added':
+                custom_names.append(x)
+
+        votes_payload = {
+            "version": 2,
+            "last_updated": datetime.utcnow().isoformat() + "Z",
+            "updated_by": "local_server",
+            "rob": rob_votes,
+            "ana": ana_votes,
+            "custom_names": custom_names
+        }
+        with open(VOTES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(votes_payload, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error updating votes.json: {e}", file=sys.stderr)
+
+
 def save_db(data):
     # Atomically write to temp file then replace
     temp_file = DB_FILE + '.tmp'
     with open(temp_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     os.replace(temp_file, DB_FILE)
+    update_votes_file_from_db(data)
 
 
 class BebeRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -210,13 +241,24 @@ class BebeRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(200, {'success': True, 'modified': modified})
             return
 
-        if path == '/api/reset':
-            if os.path.exists(BACKUP_FILE):
-                shutil.copyfile(BACKUP_FILE, DB_FILE)
-                db = load_db()
-                self.send_json(200, {'success': True, 'message': 'Database restored from original backup', 'count': len(db)})
-            else:
-                self.send_json(404, {'success': False, 'error': 'Backup file not found'})
+        if path == '/api/sync-github':
+            import subprocess
+            try:
+                # Stage files
+                subprocess.run(['git', 'add', 'votes.json', 'names_db.json'], capture_output=True, text=True, cwd=BASE_DIR)
+                stat = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True, cwd=BASE_DIR)
+                if 'votes.json' in stat.stdout or 'names_db.json' in stat.stdout:
+                    commit_msg = f"Sync votes from local server: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    subprocess.run(['git', 'commit', '-m', commit_msg], capture_output=True, text=True, cwd=BASE_DIR)
+                    push_res = subprocess.run(['git', 'push', 'origin', 'main'], capture_output=True, text=True, cwd=BASE_DIR)
+                    if push_res.returncode == 0:
+                        self.send_json(200, {'success': True, 'message': '¡Votos sincronizados exitosamente con GitHub!'})
+                    else:
+                        self.send_json(500, {'success': False, 'error': f'Error en git push: {push_res.stderr}'})
+                else:
+                    self.send_json(200, {'success': True, 'message': 'Ya está al día con GitHub (sin cambios nuevos).'})
+            except Exception as e:
+                self.send_json(500, {'success': False, 'error': str(e)})
             return
 
         self.send_json(404, {'success': False, 'error': 'Endpoint not found'})
